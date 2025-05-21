@@ -56,7 +56,7 @@ jobs:
       - name: Run Blender import tests
         run: pytest tests/test_blender_import_validation.py --verbose
 
-      - name: Run advanced Blender validation: pytest tests/test_blender_advanced_validation.py --verbose
+      - name: Run advanced Blender validation - pytest tests/test_blender_advanced_validation.py --verbose
 
       - name: Commit and Push Blender Fluid Parameters to Repository
         env:
