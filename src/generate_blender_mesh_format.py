@@ -29,17 +29,19 @@ def extract_fluid_surface(pressure_history, velocity_history, turbulence_history
     pressure_grad = np.gradient(pressure_history, axis=-1)
     pressure_grad_smoothed = gaussian_filter(pressure_grad, sigma=1)
 
-    # Detect surface areas with significant pressure drop (Ensure nonzero mask)
-    threshold_value = np.percentile(pressure_grad_smoothed, 75)  # Use the top 25% of pressure variations
+    # Ensure fluid regions are not entirely zero
+    threshold_value = np.percentile(pressure_grad_smoothed, 50)  # Use top 50% variations
     surface_mask = pressure_grad_smoothed > threshold_value
 
-    # Refine using velocity: areas with high motion contribute to fluid surface formation
+    # Ensure velocity contributes to surface formation
     velocity_magnitude = np.linalg.norm(velocity_history, axis=-1)
-    surface_mask = np.logical_and(surface_mask, velocity_magnitude > np.percentile(velocity_magnitude, 75))
+    velocity_threshold = np.percentile(velocity_magnitude, 50)  # Use top 50% motion regions
+    surface_mask = np.logical_or(surface_mask, velocity_magnitude > velocity_threshold)
 
-    # Apply turbulence refinement: fluid surface features depend on localized turbulence
+    # Ensure turbulence refines the surface structure
     turbulence_smoothed = gaussian_filter(turbulence_history, sigma=1)
-    surface_mask = np.logical_and(surface_mask, turbulence_smoothed > np.percentile(turbulence_smoothed, 75))
+    turbulence_threshold = np.percentile(turbulence_smoothed, 50)  # Capture turbulent areas
+    surface_mask = np.logical_or(surface_mask, turbulence_smoothed > turbulence_threshold)
 
     return surface_mask
 
@@ -68,8 +70,10 @@ def generate_mesh(surface_mask, nodes_coords):
 
     print(f"✅ Fixed shape: surface_field = {surface_field.shape}")
 
-    # Adjust surface level dynamically
-    surface_level = max(np.mean(surface_field), 0.1)  # Avoid selecting level=0.0
+    # Adjust surface level dynamically within valid range
+    min_val, max_val = surface_field.min(), surface_field.max()
+    surface_level = max(np.mean(surface_field), min_val + 0.05)  # Ensure valid isosurface level
+
     print(f"✅ Adjusted surface level: {surface_level}")
 
     # Extract surface mesh using Marching Cubes algorithm
