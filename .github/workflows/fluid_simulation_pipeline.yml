@@ -18,18 +18,15 @@ jobs:
         with:
           python-version: "3.9"  # Keeping Python 3.9 for compatibility
 
-      - name: Upgrade pip
-        run: python -m pip install --upgrade pip
+      - name: Upgrade pip and install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt || echo "⚠️ Warning: Some dependencies might not be available."
 
       - name: Install system dependencies (Keep TBB if needed)
         run: |
           sudo apt-get update
           sudo apt-get install -y libtbb-dev
-
-      - name: Install base dependencies (NumPy & HDF5 replace PyOpenVDB)
-        run: |
-          pip install --upgrade numpy h5py scipy pytest openvdb alembic
-          pip install -r requirements.txt || echo "⚠️ Warning: Some dependencies might not be available."
 
       - name: Debug Repository Structure
         run: ls -R "$GITHUB_WORKSPACE"
@@ -57,8 +54,8 @@ jobs:
         run: ls -R "$GITHUB_WORKSPACE/data/testing-input-output"
 
       # ✅ Execute Unit & Integration Tests After Output File Generation
-      # - name: Run Unit Tests
-      #   run: pytest tests/test_mesh_processing_pipeline.py --verbose
+      - name: Run Unit Tests
+        run: pytest tests/test_mesh_processing_pipeline.py --verbose
 
       - name: Commit and Push Alembic Fluid Mesh to Repository
         env:
