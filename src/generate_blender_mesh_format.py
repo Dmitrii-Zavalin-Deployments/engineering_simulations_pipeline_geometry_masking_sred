@@ -29,16 +29,17 @@ def extract_fluid_surface(pressure_history, velocity_history, turbulence_history
     pressure_grad = np.gradient(pressure_history, axis=-1)
     pressure_grad_smoothed = gaussian_filter(pressure_grad, sigma=1)
 
-    # Detect surface areas with significant pressure drop
-    surface_mask = pressure_grad_smoothed > np.mean(pressure_grad_smoothed) * 0.5
+    # Detect surface areas with significant pressure drop (Ensure nonzero mask)
+    threshold_value = np.percentile(pressure_grad_smoothed, 75)  # Use the top 25% of pressure variations
+    surface_mask = pressure_grad_smoothed > threshold_value
 
     # Refine using velocity: areas with high motion contribute to fluid surface formation
     velocity_magnitude = np.linalg.norm(velocity_history, axis=-1)
-    surface_mask = np.logical_and(surface_mask, velocity_magnitude > np.mean(velocity_magnitude))
+    surface_mask = np.logical_and(surface_mask, velocity_magnitude > np.percentile(velocity_magnitude, 75))
 
     # Apply turbulence refinement: fluid surface features depend on localized turbulence
     turbulence_smoothed = gaussian_filter(turbulence_history, sigma=1)
-    surface_mask = np.logical_and(surface_mask, turbulence_smoothed > np.mean(turbulence_smoothed) * 0.2)
+    surface_mask = np.logical_and(surface_mask, turbulence_smoothed > np.percentile(turbulence_smoothed, 75))
 
     return surface_mask
 
@@ -49,9 +50,9 @@ def generate_mesh(surface_mask, nodes_coords):
     # Convert surface mask to float for processing
     surface_field = surface_mask.astype(np.float32)
 
-    # Debugging: Print the shape and value range before attempting Marching Cubes
+    # Debugging: Print shape and value range before attempting Marching Cubes
     print(f"🔍 Debugging: surface_field shape = {surface_field.shape}")
-    print(f"🔍 surface_field value range = ({surface_field.min()}, {surface_field.max()})")
+    print(f"🔍 Unique values in surface_field: {np.unique(surface_field)}")
 
     # Ensure the input is a valid 3D array
     if surface_field.ndim == 4:
@@ -67,8 +68,8 @@ def generate_mesh(surface_mask, nodes_coords):
 
     print(f"✅ Fixed shape: surface_field = {surface_field.shape}")
 
-    # Select an appropriate surface level dynamically
-    surface_level = np.mean(surface_field)  # Use the average value within the data range
+    # Adjust surface level dynamically
+    surface_level = max(np.mean(surface_field), 0.1)  # Avoid selecting level=0.0
     print(f"✅ Adjusted surface level: {surface_level}")
 
     # Extract surface mesh using Marching Cubes algorithm
