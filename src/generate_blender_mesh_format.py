@@ -46,15 +46,25 @@ def extract_fluid_surface(pressure_history, velocity_history, turbulence_history
 def generate_mesh(surface_mask, nodes_coords):
     """ Convert extracted surface data into a triangular mesh using Marching Cubes. """
 
-    # Transform surface mask into a volumetric representation
+    # Convert surface mask to float for processing
     surface_field = surface_mask.astype(np.float32)
 
-    # Ensure the input is a valid 3D volume
-    if surface_field.ndim == 2:
-        print(f"⚠️ Expanding 2D surface field to 3D...")
-        surface_field = np.expand_dims(surface_field, axis=-1)  # Converts 2D -> 3D
-
+    # Debugging: Print the shape before attempting Marching Cubes
     print(f"🔍 Debugging: surface_field shape = {surface_field.shape}")
+
+    # Ensure the input is a valid 3D array
+    if surface_field.ndim == 4:
+        print(f"⚠️ Input is 4D. Selecting the first time step...")
+        surface_field = surface_field[0]  # Extract single 3D frame
+
+    elif surface_field.ndim > 3:
+        print(f"⚠️ Input is higher than 3D. Averaging over extra dimensions...")
+        surface_field = np.mean(surface_field, axis=0)  # Average across extra dimensions
+
+    elif surface_field.ndim < 3:
+        raise ValueError(f"❌ Error: Expected 3D input but found {surface_field.ndim}D array.")
+
+    print(f"✅ Fixed shape: surface_field = {surface_field.shape}")
 
     # Extract surface mesh using Marching Cubes algorithm
     verts, faces, normals, _ = marching_cubes(surface_field, level=0.5)
