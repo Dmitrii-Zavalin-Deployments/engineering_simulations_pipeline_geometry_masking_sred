@@ -7,28 +7,22 @@ on:
   workflow_dispatch:
 
 jobs:
-  process_fluid_mesh_data: # Job name updated to reflect mesh data processing
+  process_fluid_mesh_data:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4 # Recommended to use the latest version of actions/checkout
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v5 # Recommended to use the latest version
+        uses: actions/setup-python@v5
         with:
-          python-version: "3.9" # Keeping Python 3.9 as per your previous setup
+          python-version: "3.9"
 
       - name: Upgrade pip and install dependencies
         run: |
           python -m pip install --upgrade pip
-          # Install numpy and scipy for the mesh processing script
-          # The requirements.txt should now contain just numpy and scipy
           pip install -r requirements.txt
-          pip install pytest # Assuming pytest is still used for local tests if re-enabled
-
-      # Removed: "Install system dependencies (Keep TBB if needed)"
-      # libtbb-dev is generally not needed for numpy/scipy or JSON processing.
-      # It was previously relevant for pyopenvdb or other C++ bindings.
+          pip install pytest
 
       - name: Debug Repository Structure
         run: ls -R "$GITHUB_WORKSPACE"
@@ -36,7 +30,7 @@ jobs:
       - name: Verify Mesh Script Exists
         run: |
           echo "🔎 Checking if generate_blender_mesh_format.py exists..."
-          ls -R "$GITHUB_WORKSPACE/src" # List contents of src for debugging
+          ls -R "$GITHUB_WORKSPACE/src"
           if [ ! -f "$GITHUB_WORKSPACE/src/generate_blender_mesh_format.py" ]; then
             echo "❌ Error: generate_blender_mesh_format.py not found in src directory!"
             exit 1
@@ -45,25 +39,18 @@ jobs:
           fi
 
       - name: Run Fluid Mesh Data Processing Script
-        # No need for OUTPUT_FORMAT env variable here, as the script generates JSON
         run: |
-          # Ensure the script runs from the repository root so relative paths work
           python "$GITHUB_WORKSPACE/src/generate_blender_mesh_format.py"
 
       - name: Debug Output Directory
-        run: ls -R "$GITHUB_WORKSPACE/data/testing-input-output" # Focus on the output directory
+        run: ls -R "$GITHUB_WORKSPACE/data/testing-input-output"
 
       # --- COMMENTED OUT: Test Steps ---
-      # As requested, tests are commented out for now.
-      # You can uncomment and adjust them once the primary output is stable.
       # - name: Run Unit Tests (Mesh Processing)
       #   run: pytest tests/test_mesh_processing_pipeline.py --verbose
 
-      - name: Upload Generated Fluid Mesh JSON
-        uses: actions/upload-artifact@v4
-        with:
-          name: generated-fluid-mesh-json
-          path: data/testing-input-output/fluid_mesh_data.json # Changed to the new JSON output
+      # --- REMOVED: Upload Generated Fluid Mesh JSON Artifact ---
+      # This step is no longer needed as the file is committed directly.
 
       - name: Commit and Push Fluid Mesh Data to Repository
         env:
@@ -75,7 +62,6 @@ jobs:
 
           cd "$GITHUB_WORKSPACE"
 
-          # Changed to look for the new JSON output file
           GENERATED_FILE="data/testing-input-output/fluid_mesh_data.json"
           
           if [ -f "$GENERATED_FILE" ]; then
@@ -87,7 +73,7 @@ jobs:
               git push origin HEAD
             else
               echo "✅ No changes to commit!"
-            fi
+            F
           else
             echo "❌ No fluid mesh data JSON detected, skipping commit."
           fi
