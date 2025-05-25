@@ -4,38 +4,74 @@ on:
   push:
     branches:
       - "**"  # Triggers on any branch
-  workflow_dispatch:
+  workflow_dispatch: # Allows manual triggering from GitHub UI
 
 jobs:
   process_fluid_mesh:
     runs-on: ubuntu-latest
+    permissions: # !!! ADDED: Explicitly grant write access for repository contents !!!
+      contents: write # This is crucial for the workflow to be able to push changes back
+      # If you also push to a specific branch like 'main' or 'master'
+      # and have branch protection rules, you might need pull-requests: write as well
+      # but contents: write should be sufficient for direct pushes.
+
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4 # Updated to v4 for latest features and security
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5 # Updated to v5 for latest features and security
         with:
-          python-version: "3.9"  # Keeping Python 3.9 for compatibility
+          python-version: "3.9"
 
-      - name: Upgrade pip and install dependencies
+      # !!! ADDED: Install system dependencies required by alembic-py's underlying C++ library !!!
+      # These packages are crucial for alembic to function correctly on Ubuntu.
+      - name: Install system dependencies for Alembic
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt || echo "⚠️ Warning: Some dependencies might not be available."
-
-      - name: Install system dependencies (Keep TBB if needed)
-        run: |
+          echo "Installing essential system libraries for Alembic..."
           sudo apt-get update
-          sudo apt-get install -y libtbb-dev
+          sudo apt-get install -y libhdf5-dev libopenexr-dev libboost-all-dev
+          echo "System dependencies installed."
 
-      - name: Debug Repository Structure
-        run: ls -R "$GITHUB_WORKSPACE"
+      - name: Upgrade pip and install Python dependencies
+        run: |
+          echo "Upgrading pip..."
+          python -m pip install --upgrade pip
+          echo "Installing Python dependencies from requirements.txt..."
+          pip install -r requirements.txt || { echo "⚠️ Warning: Some Python dependencies might not be available or failed to install."; exit 1; }
+          echo "Python dependencies installation complete."
+
+      # !!! ADDED: Verify Alembic Python package installation and import !!!
+      # This step helps debug if alembic-py itself is the issue after pip install.
+      - name: Verify Alembic Python package
+        run: |
+          echo "Verifying 'alembic-py' package installation..."
+          pip show alembic-py
+          if [ $? -ne 0 ]; then
+              echo "❌ Error: 'alembic-py' Python package is not installed. Check requirements.txt and previous install steps."
+              exit 1
+          fi
+          echo "'alembic-py' package found."
+          
+      - name: Test Alembic import (check for underlying C++ dependencies)
+        run: |
+          echo "Attempting to import alembic.AbcGeom..."
+          python -c "import alembic.AbcGeom; print('Alembic import successful!')"
+          if [ $? -ne 0 ]; then
+              echo "❌ Error: Failed to import alembic.AbcGeom. This indicates a problem with the underlying C++ libraries or their linking."
+              echo "Ensure 'libhdf5-dev', 'libopenexr-dev', 'libboost-all-dev' were correctly installed in the 'Install system dependencies for Alembic' step."
+              exit 1
+          fi
+          echo "Alembic.AbcGeom import successful."
+
+      - name: Debug Repository Structure Before Script Run
+        run: ls -RF "$GITHUB_WORKSPACE"
 
       - name: Verify Script Exists
         run: |
           echo "🔎 Checking if generate_blender_mesh_format.py exists..."
-          ls -R "$GITHUB_WORKSPACE/src"
-
+          # The cd to $GITHUB_WORKSPACE/src in the next step makes this path relative
+          # so checking absolute path here is correct.
           if [ ! -f "$GITHUB_WORKSPACE/src/generate_blender_mesh_format.py" ]; then
             echo "❌ Error: generate_blender_mesh_format.py not found in src directory!"
             exit 1
@@ -45,17 +81,26 @@ jobs:
 
       - name: Run Fluid Mesh Processing Script
         env:
-          OUTPUT_FORMAT: abc  # Output format for Alembic mesh
+          OUTPUT_FORMAT: abc # This environment variable is not currently used by your Python script but is kept for context
         run: |
+          echo "Changing directory to $GITHUB_WORKSPACE/src for script execution..."
           cd "$GITHUB_WORKSPACE/src"
+          echo "Running Python script generate_blender_mesh_format.py..."
+          # The Python script uses os.getcwd() which will now correctly be $GITHUB_WORKSPACE/src
+          # And it constructs the path back to $GITHUB_WORKSPACE/data/testing-input-output/fluid_mesh.abc
           python generate_blender_mesh_format.py
+          echo "Python script execution finished."
 
-      - name: Debug Output Directory
-        run: ls -R "$GITHUB_WORKSPACE"
+      - name: Debug Output Directory After Script Run
+        run: |
+          echo "Listing contents of $GITHUB_WORKSPACE/data/testing-input-output after script run:"
+          ls -RF "$GITHUB_WORKSPACE/data/testing-input-output" # Focus on the target directory
 
-      # ✅ Execute Unit & Integration Tests After Output File Generation
+      # ✅ Execute Unit & Integration Tests After Output File Generation (uncomment if ready)
       # - name: Run Unit Tests
-      #   run: pytest tests/test_mesh_processing_pipeline.py --verbose
+      #   run: |
+      #     cd "$GITHUB_WORKSPACE" # Change back to repo root for pytest
+      #     pytest tests/test_mesh_processing_pipeline.py --verbose
 
       - name: Commit and Push Alembic Fluid Mesh to Repository
         env:
@@ -65,18 +110,26 @@ jobs:
           git config --global user.name "${GIT_USER_NAME}"
           git config --global user.email "${GIT_USER_EMAIL}"
 
-          cd "$GITHUB_WORKSPACE"
+          cd "$GITHUB_WORKSPACE" # Ensure we are at the repository root for git commands
 
-          if [ -f "data/testing-input-output/fluid_mesh.abc" ]; then
-            git add "data/testing-input-output/fluid_mesh.abc"
-            git status
+          ABC_FILE_PATH="data/testing-input-output/fluid_mesh.abc"
 
-            if [[ $(git diff --cached --quiet; echo $?) -ne 0 ]]; then
+          echo "Checking for changes in ${ABC_FILE_PATH}..."
+          if [ -f "$ABC_FILE_PATH" ]; then
+            # Add the file to the staging area
+            git add "$ABC_FILE_PATH"
+            git status # Show git status for debugging
+
+            # Check if there are any staged changes (this includes new files)
+            if ! git diff --staged --quiet; then
+              echo "🚀 Changes detected in ${ABC_FILE_PATH}. Committing..."
               git commit -m "Auto-update: Generated Alembic fluid mesh"
-              git push origin HEAD
+              git push origin HEAD # Push to the same branch that triggered the workflow
+              echo "🎉 Successfully committed and pushed ${ABC_FILE_PATH}."
             else
-              echo "✅ No changes to commit!"
+              echo "✅ No changes to ${ABC_FILE_PATH} detected, nothing to commit."
             fi
           else
-            echo "❌ No Alembic fluid mesh detected, skipping commit."
+            echo "❌ No Alembic fluid mesh detected at ${ABC_FILE_PATH}, skipping commit. This indicates the Python script failed to generate the file."
+            exit 1 # Fail the workflow if the file is not generated, as it's a critical output
           fi
