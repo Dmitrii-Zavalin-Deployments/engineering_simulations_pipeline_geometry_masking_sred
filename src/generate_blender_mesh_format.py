@@ -49,6 +49,13 @@ def generate_mesh(surface_mask, nodes_coords):
     # Transform surface mask into a volumetric representation
     surface_field = surface_mask.astype(np.float32)
 
+    # Ensure the input is a valid 3D volume
+    if surface_field.ndim == 2:
+        print(f"⚠️ Expanding 2D surface field to 3D...")
+        surface_field = np.expand_dims(surface_field, axis=-1)  # Converts 2D -> 3D
+
+    print(f"🔍 Debugging: surface_field shape = {surface_field.shape}")
+
     # Extract surface mesh using Marching Cubes algorithm
     verts, faces, normals, _ = marching_cubes(surface_field, level=0.5)
 
