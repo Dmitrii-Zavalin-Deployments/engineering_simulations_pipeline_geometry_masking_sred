@@ -1,7 +1,6 @@
 import numpy as np
 import json
 import os
-import openvdb  # Handles volumetric data processing
 import alembic  # Exports to Alembic mesh format
 from scipy.ndimage import gaussian_filter
 from skimage.measure import marching_cubes
