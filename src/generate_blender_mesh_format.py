@@ -84,7 +84,7 @@ def extract_fluid_surface(pressure_frame, velocity_frame, turbulence_frame):
     # Apply a Gaussian filter to smooth the scalar field.
     fluid_scalar_field_smoothed = gaussian_filter(fluid_scalar_field, sigma=0.5)
 
-    # print(f"  Combined scalar field min: {fluid_scalar_field_smoothed.min()}, max: {fluid_scalar_field_smoothed.max()}")
+    print(f"  Smoothed scalar field shape: {fluid_scalar_field_smoothed.shape}, min: {fluid_scalar_field_smoothed.min()}, max: {fluid_scalar_field_smoothed.max()}")
     # print("--- End Debugging extract_fluid_surface ---\n")
 
     return fluid_scalar_field_smoothed
@@ -98,8 +98,6 @@ def generate_mesh(surface_field, grid_metadata):
 
     # Ensure the input is a valid 3D array for Marching Cubes.
     if surface_field.ndim != 3:
-        # This should ideally not happen now that extract_fluid_surface handles frame slicing.
-        # But as a safeguard:
         if surface_field.ndim == 4:
             surface_field = surface_field[0]
             print(f"⚠️ Warning: generate_mesh received 4D data, processed only first frame. Shape: {surface_field.shape}")
@@ -107,6 +105,8 @@ def generate_mesh(surface_field, grid_metadata):
             raise ValueError(f"❌ Error: Expected 3D input but found {surface_field.ndim}D array in generate_mesh.")
 
     min_val, max_val = surface_field.min(), surface_field.max()
+    print(f"  Marching Cubes input field min: {min_val}, max: {max_val}")
+
 
     # Check for uniform data before attempting Marching Cubes
     if min_val == max_val:
@@ -123,9 +123,12 @@ def generate_mesh(surface_field, grid_metadata):
     else:
         surface_level = np.clip(surface_level, min_val + epsilon, max_val - epsilon)
 
+    print(f"  Marching Cubes level set to: {surface_level}")
+
     # Extract surface mesh using Marching Cubes
     try:
         verts_grid_coords, faces, normals, _ = marching_cubes(surface_field, level=surface_level)
+        print(f"  Marching Cubes raw output - Vertices: {len(verts_grid_coords)}, Faces: {len(faces)}")
     except ValueError as e:
         # Marching cubes can raise ValueError for degenerate cases
         raise RuntimeError(f"❌ Marching Cubes failed for this frame at level={surface_level}: {e}")
@@ -158,7 +161,14 @@ def export_to_alembic(all_frame_data, output_file):
         print("⚠️ No valid mesh data generated to export to Alembic.")
         return
 
-    archive = alembic.AbcGeom.OArchive(output_file)
+    print(f"Attempting to create Alembic archive at: {output_file}")
+    try:
+        archive = alembic.AbcGeom.OArchive(output_file)
+        print("Alembic archive created successfully.")
+    except Exception as e:
+        print(f"❌ Error creating Alembic archive: {e}")
+        return
+
     mesh_obj = alembic.AbcGeom.OPolyMesh(archive.getTop(), "fluid_mesh")
     mesh_schema = mesh_obj.getSchema()
 
@@ -201,29 +211,37 @@ if __name__ == "__main__":
         velocity_frame = velocity_history[i]
         turbulence_frame = turbulence_history[i]
 
+        verts, faces, normals = None, None, None # Initialize to None for error handling clarity
+
         try:
             fluid_scalar_field = extract_fluid_surface(pressure_frame, velocity_frame, turbulence_frame)
             verts, faces, normals = generate_mesh(fluid_scalar_field, grid_metadata)
 
-            # Store the data for this frame.
-            # Assuming frame 'i' corresponds to time 'i / fps' seconds.
-            # You might need to adjust the time calculation based on your simulation's dt.
-            frame_time = i / 24.0 # Example: if simulation runs at 24 frames per second
-            all_mesh_frames_data.append((frame_time, verts, faces))
-            print(f"✅ Mesh generated successfully for frame {i}. Verts: {len(verts)}, Faces: {len(faces)}")
+            # Store the data for this frame ONLY if valid mesh was generated.
+            if verts is not None and faces is not None and len(verts) > 0 and len(faces) > 0:
+                # Assuming frame 'i' corresponds to time 'i / fps' seconds.
+                # You might need to adjust the time calculation based on your simulation's dt.
+                frame_time = i / 24.0 # Example: if simulation runs at 24 frames per second
+                all_mesh_frames_data.append((frame_time, verts, faces))
+                print(f"✅ Mesh generated successfully for frame {i}. Verts: {len(verts)}, Faces: {len(faces)}")
+            else:
+                print(f"⚠️ Marching Cubes generated an empty mesh for frame {i} despite no RuntimeError. Skipping this frame.")
+
 
         except RuntimeError as e:
-            print(f"⚠️ Skipping frame {i}: {e}")
+            print(f"⚠️ Skipping frame {i} due to a processing error: {e}")
             # Optionally, you could append the previous frame's data here to hold the last valid mesh
             # for a smoother animation if a frame is skipped.
             # if all_mesh_frames_data:
-            #     all_mesh_frames_data.append(all_mesh_frames_data[-1]) # Append last valid frame
+            #    all_mesh_frames_data.append(all_mesh_frames_data[-1]) # Append last valid frame
             # else:
-            #     pass # No previous frame to append, just skip
+            #    pass # No previous frame to append, just skip
 
         except Exception as e:
             print(f"❌ An unexpected error occurred while processing frame {i}: {e}")
 
+    print(f"\n--- Mesh Generation Summary ---")
+    print(f"Total number of frames successfully processed and collected: {len(all_mesh_frames_data)}")
 
     # Export all collected mesh data to an animated Alembic file
     export_to_alembic(all_mesh_frames_data, output_file)
