@@ -29,18 +29,18 @@ def extract_fluid_surface(pressure_history, velocity_history, turbulence_history
     pressure_grad = np.gradient(pressure_history, axis=-1)
     pressure_grad_smoothed = gaussian_filter(pressure_grad, sigma=1)
 
-    # Ensure fluid regions are not entirely zero
-    threshold_value = np.percentile(pressure_grad_smoothed, 50)  # Use top 50% variations
+    # Ensure fluid regions are properly detected
+    threshold_value = np.percentile(pressure_grad_smoothed, 50)  # Use the top 50% of variations
     surface_mask = pressure_grad_smoothed > threshold_value
 
     # Ensure velocity contributes to surface formation
     velocity_magnitude = np.linalg.norm(velocity_history, axis=-1)
-    velocity_threshold = np.percentile(velocity_magnitude, 50)  # Use top 50% motion regions
+    velocity_threshold = np.percentile(velocity_magnitude, 50)
     surface_mask = np.logical_or(surface_mask, velocity_magnitude > velocity_threshold)
 
     # Ensure turbulence refines the surface structure
     turbulence_smoothed = gaussian_filter(turbulence_history, sigma=1)
-    turbulence_threshold = np.percentile(turbulence_smoothed, 50)  # Capture turbulent areas
+    turbulence_threshold = np.percentile(turbulence_smoothed, 50)
     surface_mask = np.logical_or(surface_mask, turbulence_smoothed > turbulence_threshold)
 
     return surface_mask
@@ -55,6 +55,7 @@ def generate_mesh(surface_mask, nodes_coords):
     # Debugging: Print shape and value range before attempting Marching Cubes
     print(f"🔍 Debugging: surface_field shape = {surface_field.shape}")
     print(f"🔍 Unique values in surface_field: {np.unique(surface_field)}")
+    print(f"🔍 surface_field min = {surface_field.min()}, max = {surface_field.max()}")
 
     # Ensure the input is a valid 3D array
     if surface_field.ndim == 4:
@@ -63,16 +64,20 @@ def generate_mesh(surface_mask, nodes_coords):
 
     elif surface_field.ndim > 3:
         print(f"⚠️ Input is higher than 3D. Averaging over extra dimensions...")
-        surface_field = np.mean(surface_field, axis=0)  # Average across extra dimensions
+        surface_field = np.mean(surface_field, axis=0)
 
     elif surface_field.ndim < 3:
         raise ValueError(f"❌ Error: Expected 3D input but found {surface_field.ndim}D array.")
 
     print(f"✅ Fixed shape: surface_field = {surface_field.shape}")
 
-    # Adjust surface level dynamically within valid range
+    # Adjust surface level dynamically to prevent selection outside valid range
     min_val, max_val = surface_field.min(), surface_field.max()
-    surface_level = max(np.mean(surface_field), min_val + 0.05)  # Ensure valid isosurface level
+    surface_level = max(np.mean(surface_field), min_val + 0.05)
+
+    # Prevent errors when all values are zero
+    if min_val == max_val:
+        raise RuntimeError("❌ No valid surface detected: All values in surface_field are identical.")
 
     print(f"✅ Adjusted surface level: {surface_level}")
 
