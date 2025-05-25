@@ -51,7 +51,7 @@ jobs:
           python generate_blender_mesh_format.py
 
       - name: Debug Output Directory
-        run: ls -R "$GITHUB_WORKSPACE/data/testing-input-output"
+        run: ls -R "$GITHUB_WORKSPACE"
 
       # ✅ Execute Unit & Integration Tests After Output File Generation
       # - name: Run Unit Tests
