@@ -49,8 +49,9 @@ def generate_mesh(surface_mask, nodes_coords):
     # Convert surface mask to float for processing
     surface_field = surface_mask.astype(np.float32)
 
-    # Debugging: Print the shape before attempting Marching Cubes
+    # Debugging: Print the shape and value range before attempting Marching Cubes
     print(f"🔍 Debugging: surface_field shape = {surface_field.shape}")
+    print(f"🔍 surface_field value range = ({surface_field.min()}, {surface_field.max()})")
 
     # Ensure the input is a valid 3D array
     if surface_field.ndim == 4:
@@ -66,8 +67,12 @@ def generate_mesh(surface_mask, nodes_coords):
 
     print(f"✅ Fixed shape: surface_field = {surface_field.shape}")
 
+    # Select an appropriate surface level dynamically
+    surface_level = np.mean(surface_field)  # Use the average value within the data range
+    print(f"✅ Adjusted surface level: {surface_level}")
+
     # Extract surface mesh using Marching Cubes algorithm
-    verts, faces, normals, _ = marching_cubes(surface_field, level=0.5)
+    verts, faces, normals, _ = marching_cubes(surface_field, level=surface_level)
 
     # Map vertices to physical space
     verts_transformed = nodes_coords[verts.astype(int)]
