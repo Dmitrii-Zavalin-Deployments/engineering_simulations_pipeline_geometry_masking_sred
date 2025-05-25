@@ -1,2 +1,5 @@
 numpy
-pyopenvdb
+h5py
+scipy
+pytest
+alembic
