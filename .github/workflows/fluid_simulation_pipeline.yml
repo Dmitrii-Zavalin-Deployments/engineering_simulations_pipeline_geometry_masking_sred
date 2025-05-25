@@ -1,4 +1,4 @@
-name: Fluid Mesh Processing and Commit
+name: Fluid Mesh Data Processing and Commit
 
 on:
   push:
@@ -7,35 +7,36 @@ on:
   workflow_dispatch:
 
 jobs:
-  process_fluid_mesh:
+  process_fluid_mesh_data: # Job name updated to reflect mesh data processing
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4 # Recommended to use the latest version of actions/checkout
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5 # Recommended to use the latest version
         with:
-          python-version: "3.9"  # Keeping Python 3.9 for compatibility
+          python-version: "3.9" # Keeping Python 3.9 as per your previous setup
 
       - name: Upgrade pip and install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt || echo "⚠️ Warning: Some dependencies might not be available."
+          # Install numpy and scipy for the mesh processing script
+          # The requirements.txt should now contain just numpy and scipy
+          pip install -r requirements.txt
+          pip install pytest # Assuming pytest is still used for local tests if re-enabled
 
-      - name: Install system dependencies (Keep TBB if needed)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libtbb-dev
+      # Removed: "Install system dependencies (Keep TBB if needed)"
+      # libtbb-dev is generally not needed for numpy/scipy or JSON processing.
+      # It was previously relevant for pyopenvdb or other C++ bindings.
 
       - name: Debug Repository Structure
         run: ls -R "$GITHUB_WORKSPACE"
 
-      - name: Verify Script Exists
+      - name: Verify Mesh Script Exists
         run: |
           echo "🔎 Checking if generate_blender_mesh_format.py exists..."
-          ls -R "$GITHUB_WORKSPACE/src"
-
+          ls -R "$GITHUB_WORKSPACE/src" # List contents of src for debugging
           if [ ! -f "$GITHUB_WORKSPACE/src/generate_blender_mesh_format.py" ]; then
             echo "❌ Error: generate_blender_mesh_format.py not found in src directory!"
             exit 1
@@ -43,21 +44,28 @@ jobs:
             echo "✅ Script found: generate_blender_mesh_format.py"
           fi
 
-      - name: Run Fluid Mesh Processing Script
-        env:
-          OUTPUT_FORMAT: abc  # Output format for Alembic mesh
+      - name: Run Fluid Mesh Data Processing Script
+        # No need for OUTPUT_FORMAT env variable here, as the script generates JSON
         run: |
-          cd "$GITHUB_WORKSPACE/src"
-          python generate_blender_mesh_format.py
+          # Ensure the script runs from the repository root so relative paths work
+          python "$GITHUB_WORKSPACE/src/generate_blender_mesh_format.py"
 
       - name: Debug Output Directory
-        run: ls -R "$GITHUB_WORKSPACE"
+        run: ls -R "$GITHUB_WORKSPACE/data/testing-input-output" # Focus on the output directory
 
-      # ✅ Execute Unit & Integration Tests After Output File Generation
-      # - name: Run Unit Tests
+      # --- COMMENTED OUT: Test Steps ---
+      # As requested, tests are commented out for now.
+      # You can uncomment and adjust them once the primary output is stable.
+      # - name: Run Unit Tests (Mesh Processing)
       #   run: pytest tests/test_mesh_processing_pipeline.py --verbose
 
-      - name: Commit and Push Alembic Fluid Mesh to Repository
+      - name: Upload Generated Fluid Mesh JSON
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-fluid-mesh-json
+          path: data/testing-input-output/fluid_mesh_data.json # Changed to the new JSON output
+
+      - name: Commit and Push Fluid Mesh Data to Repository
         env:
           GIT_USER_NAME: ${{ secrets.GIT_USER_NAME }}
           GIT_USER_EMAIL: ${{ secrets.GIT_USER_EMAIL }}
@@ -67,16 +75,19 @@ jobs:
 
           cd "$GITHUB_WORKSPACE"
 
-          if [ -f "data/testing-input-output/fluid_mesh.abc" ]; then
-            git add "data/testing-input-output/fluid_mesh.abc"
+          # Changed to look for the new JSON output file
+          GENERATED_FILE="data/testing-input-output/fluid_mesh_data.json"
+          
+          if [ -f "$GENERATED_FILE" ]; then
+            git add "$GENERATED_FILE"
             git status
 
             if [[ $(git diff --cached --quiet; echo $?) -ne 0 ]]; then
-              git commit -m "Auto-update: Generated Alembic fluid mesh"
+              git commit -m "Auto-update: Generated animated fluid mesh data (JSON)"
               git push origin HEAD
             else
               echo "✅ No changes to commit!"
             fi
           else
-            echo "❌ No Alembic fluid mesh detected, skipping commit."
+            echo "❌ No fluid mesh data JSON detected, skipping commit."
           fi
