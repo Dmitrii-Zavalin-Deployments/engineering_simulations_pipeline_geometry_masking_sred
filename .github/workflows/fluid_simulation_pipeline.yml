@@ -73,7 +73,7 @@ jobs:
               git push origin HEAD
             else
               echo "✅ No changes to commit!"
-            F
+            fi
           else
             echo "❌ No fluid mesh data JSON detected, skipping commit."
           fi
