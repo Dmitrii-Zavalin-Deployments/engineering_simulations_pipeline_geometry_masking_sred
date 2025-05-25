@@ -31,45 +31,91 @@ def extract_fluid_surface(pressure_history, velocity_history, turbulence_history
     This field is then smoothed for better mesh generation.
     """
 
-    # --- Normalize and combine contributions from different physical quantities ---
+    print("\n--- Debugging extract_fluid_surface ---")
 
-    # Pressure contribution: Assuming higher pressure indicates fluid regions.
-    # Normalize to [0, 1] range.
-    pressure_contribution = pressure_history
+    # --- Pre-process data for a single time step if it's 4D ---
+    # The generate_mesh function will handle the 4D to 3D conversion,
+    # but for individual contributions here, let's work on the first timestep.
+    # We should ensure each history array is 3D before calculating contributions.
+    if pressure_history.ndim == 4:
+        pressure_history_3d = pressure_history[0]
+        velocity_history_3d = velocity_history[0]
+        turbulence_history_3d = turbulence_history[0]
+        print(f"ℹ️ Extracting first time step for surface extraction: {pressure_history_3d.shape}")
+    else:
+        pressure_history_3d = pressure_history
+        velocity_history_3d = velocity_history
+        turbulence_history_3d = turbulence_history
+        print(f"ℹ️ Input histories are already 3D: {pressure_history_3d.shape}")
+
+    # --- Pressure contribution ---
+    print(f"  Pressure (3D) shape: {pressure_history_3d.shape}")
+    print(f"  Pressure min: {pressure_history_3d.min()}, max: {pressure_history_3d.max()}")
+    print(f"  Pressure unique values: {np.unique(pressure_history_3d)}")
+
+    pressure_contribution = pressure_history_3d
     if pressure_contribution.max() > pressure_contribution.min():
         pressure_contribution = (pressure_contribution - pressure_contribution.min()) / \
                                 (pressure_contribution.max() - pressure_contribution.min())
+        print(f"  Pressure contribution normalized. Min: {pressure_contribution.min()}, Max: {pressure_contribution.max()}")
     else:
-        pressure_contribution = np.zeros_like(pressure_contribution) # Handle uniform data
+        pressure_contribution = np.zeros_like(pressure_contribution)
+        print("  Pressure data is uniform, contribution set to zeros.")
 
+    # --- Velocity magnitude contribution ---
+    # Ensure axis=-1 is correct if velocity_history_3d is (D, H, W, 3)
+    # If it's (D, H, W) and velocity is a scalar magnitude, then axis=-1 would be wrong for norm.
+    # Assuming velocity_history is (time, D, H, W, 3) or (D, H, W, 3)
+    # If velocity_history_3d is (D, H, W) of scalar magnitudes, then axis=-1 for norm doesn't make sense.
+    # np.linalg.norm works on the last axis for a vector.
+    # If your velocity_history_3d is simply (Z, Y, X) of scalar magnitudes, remove axis=-1.
+    # Otherwise, it needs to be (Z, Y, X, 3) for vectors.
+    if velocity_history_3d.shape[-1] == 3: # Check if last dim is 3 (for vectors)
+        velocity_magnitude = np.linalg.norm(velocity_history_3d, axis=-1)
+        print(f"  Velocity (3D, vector) shape: {velocity_history_3d.shape}")
+    else:
+        # Assume it's already a scalar magnitude field (e.g., (D,H,W))
+        velocity_magnitude = velocity_history_3d
+        print(f"  Velocity (3D, scalar) shape: {velocity_history_3d.shape}")
 
-    # Velocity magnitude contribution: Higher velocity might indicate active fluid regions.
-    # Normalize to [0, 1] range.
-    velocity_magnitude = np.linalg.norm(velocity_history, axis=-1)
+    print(f"  Velocity magnitude min: {velocity_magnitude.min()}, max: {velocity_magnitude.max()}")
+    print(f"  Velocity magnitude unique values: {np.unique(velocity_magnitude)}")
+
     if velocity_magnitude.max() > velocity_magnitude.min():
         velocity_contribution = (velocity_magnitude - velocity_magnitude.min()) / \
                                 (velocity_magnitude.max() - velocity_magnitude.min())
+        print(f"  Velocity contribution normalized. Min: {velocity_contribution.min()}, Max: {velocity_contribution.max()}")
     else:
         velocity_contribution = np.zeros_like(velocity_magnitude)
+        print("  Velocity magnitude data is uniform, contribution set to zeros.")
 
 
-    # Turbulence kinetic energy contribution: Can indicate turbulent fluid regions, adding detail.
-    # Normalize to [0, 1] range.
-    turbulence_contribution = turbulence_history
+    # --- Turbulence kinetic energy contribution ---
+    print(f"  Turbulence (3D) shape: {turbulence_history_3d.shape}")
+    print(f"  Turbulence min: {turbulence_history_3d.min()}, max: {turbulence_history_3d.max()}")
+    print(f"  Turbulence unique values: {np.unique(turbulence_history_3d)}")
+
+    turbulence_contribution = turbulence_history_3d
     if turbulence_contribution.max() > turbulence_contribution.min():
         turbulence_contribution = (turbulence_contribution - turbulence_contribution.min()) / \
                                   (turbulence_contribution.max() - turbulence_contribution.min())
+        print(f"  Turbulence contribution normalized. Min: {turbulence_contribution.min()}, Max: {turbulence_contribution.max()}")
     else:
         turbulence_contribution = np.zeros_like(turbulence_contribution)
+        print("  Turbulence data is uniform, contribution set to zeros.")
 
 
-    # Combine all normalized contributions to create a composite fluid scalar field.
-    # A simple average is used here; weighted averages could be explored for fine-tuning.
+    # --- Combine all normalized contributions ---
     fluid_scalar_field = (pressure_contribution + velocity_contribution + turbulence_contribution) / 3.0
+    print(f"  Combined fluid_scalar_field min: {fluid_scalar_field.min()}, max: {fluid_scalar_field.max()}")
+    print(f"  Combined fluid_scalar_field unique values: {np.unique(fluid_scalar_field)}")
 
-    # Apply a Gaussian filter to smooth the scalar field. This helps Marching Cubes
-    # produce a cleaner, less noisy mesh. Sigma 0.5 is a light smoothing.
+    # Apply a Gaussian filter to smooth the scalar field.
     fluid_scalar_field_smoothed = gaussian_filter(fluid_scalar_field, sigma=0.5)
+    print(f"  Smoothed fluid_scalar_field_smoothed min: {fluid_scalar_field_smoothed.min()}, max: {fluid_scalar_field_smoothed.max()}")
+    print(f"  Smoothed fluid_scalar_field_smoothed unique values: {np.unique(fluid_scalar_field_smoothed)}")
+
+    print("--- End Debugging extract_fluid_surface ---\n")
 
     return fluid_scalar_field_smoothed
 
@@ -112,8 +158,15 @@ def generate_mesh(surface_field, grid_metadata): # Changed nodes_coords to grid_
 
     # Ensure the chosen surface_level is strictly within the data's range to avoid issues.
     # Adding a small epsilon to prevent marching_cubes from failing on boundary conditions.
-    epsilon = 1e-5 * (max_val - min_val) # A small fraction of the total range
-    surface_level = np.clip(surface_level, min_val + epsilon, max_val - epsilon)
+    epsilon = 1e-7 # A small constant epsilon
+    # Check if range is effectively zero
+    if (max_val - min_val) < 1e-6: # Using a small tolerance for "effectively zero range"
+        # If range is too small, setting a level can be problematic.
+        # This case should ideally be caught by `min_val == max_val` earlier,
+        # but as a safeguard, make sure epsilon doesn't push it out of bounds.
+        surface_level = min_val + (max_val - min_val) / 2.0 # Still midpoint
+    else:
+        surface_level = np.clip(surface_level, min_val + epsilon, max_val - epsilon)
 
 
     print(f"✅ Adjusted surface level: {surface_level}")
