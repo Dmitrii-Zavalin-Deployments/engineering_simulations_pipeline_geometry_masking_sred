@@ -6,36 +6,64 @@ def generate_fluid_mesh_data_json(
     navier_stokes_results_path,
     output_mesh_json_path="data/testing-input-output/fluid_mesh_data.json"
 ):
+    """
+    Processes fluid simulation data to extract outer boundary nodes as a mesh
+    and saves their animated positions and static faces into a JSON file.
+
+    Args:
+        navier_stokes_results_path (str): Path to the navier_stokes_results.json file.
+        output_mesh_json_path (str): Path to save the generated fluid_mesh_data.json file.
+    """
     print(f"Loading data from {navier_stokes_results_path}")
 
+    # Ensure output directory exists
     output_dir = os.path.dirname(output_mesh_json_path)
     if output_dir and not os.path.exists(output_dir):
         os.makedirs(output_dir)
         print(f"Created output directory: {output_dir}")
 
+    # 1. Load Input Data
     try:
         with open(navier_stokes_results_path, 'r') as f:
             navier_stokes_data = json.load(f)
     except FileNotFoundError as e:
         print(f"Error: Input file not found: {e}. Please ensure path is correct.")
-        return # Or raise an error if you prefer the function to strictly fail
+        # For testing, it's better to raise an exception here to signal failure
+        raise FileNotFoundError(f"Input file not found: {e}") 
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Invalid JSON format in input file: {e}")
 
     # --- Input Validation Start ---
-    # Validate 'time_points' existence
+
+    # Validate 'time_points' existence and type
     if 'time_points' not in navier_stokes_data:
         raise KeyError("Input JSON is missing 'time_points' key.")
+    if not isinstance(navier_stokes_data['time_points'], list):
+        raise TypeError("'time_points' must be a list.")
     time_points = np.array(navier_stokes_data['time_points'])
+
+    # Validate 'time_points' for monotonicity
+    if len(time_points) > 1: # Only check for monotonicity if there's more than one time point
+        for i in range(1, len(time_points)):
+            if time_points[i] <= time_points[i-1]:
+                raise ValueError(
+                    f"Time points are not monotonically increasing. Issue at index {i}: "
+                    f"{time_points[i-1]} followed by {time_points[i]}."
+                )
 
     # Validate 'mesh_info' existence and its sub-keys
     if 'mesh_info' not in navier_stokes_data:
         raise KeyError("Input JSON is missing 'mesh_info' key.")
-    if 'nodes_coords' not in navier_stokes_data['mesh_info']:
+    
+    mesh_info = navier_stokes_data['mesh_info'] # Access mesh_info once
+
+    if 'nodes_coords' not in mesh_info:
         raise KeyError("Input JSON is missing 'mesh_info.nodes_coords' key.")
-    if 'grid_shape' not in navier_stokes_data['mesh_info']:
+    if 'grid_shape' not in mesh_info:
         raise KeyError("Input JSON is missing 'mesh_info.grid_shape' key.")
 
-    initial_nodes_coords = np.array(navier_stokes_data['mesh_info']['nodes_coords'])
-    grid_shape = navier_stokes_data['mesh_info']['grid_shape'] # [Z, Y, X]
+    initial_nodes_coords = np.array(mesh_info['nodes_coords'])
+    grid_shape = mesh_info['grid_shape'] # [Z, Y, X]
 
     # Validate grid_shape: must be 3 integers, and positive
     if not (isinstance(grid_shape, list) and len(grid_shape) == 3 and
@@ -80,8 +108,6 @@ def generate_fluid_mesh_data_json(
 
     # --- Input Validation End ---
     
-    # Rest of your existing code remains the same
-
     # --- Identify Surface Nodes and Create Static Faces ---
     def get_1d_index(ix, iy, iz, nx, ny):
         return iz * (ny * nx) + iy * nx + ix
@@ -95,8 +121,9 @@ def generate_fluid_mesh_data_json(
                                iz == 0 or iz == num_z - 1)
                 if is_boundary:
                     idx_1d = get_1d_index(ix, iy, iz, num_x, num_y)
-                    if idx_1d < len(initial_nodes_coords): # This check is redundant after nodes_coords_size_mismatch validation
-                        boundary_1d_indices.add(idx_1d)
+                    # The check 'if idx_1d < len(initial_nodes_coords)' is now redundant
+                    # due to prior validation, but doesn't hurt.
+                    boundary_1d_indices.add(idx_1d)
 
     sorted_boundary_indices = sorted(list(boundary_1d_indices))
     global_to_local_idx_map = {global_idx: local_idx for local_idx, global_idx in enumerate(sorted_boundary_indices)}
@@ -197,7 +224,9 @@ def generate_fluid_mesh_data_json(
         current_velocities_all_nodes = np.array(velocity_history[t_idx])
 
         # Calculate time step (dt)
-        dt = time_points[t_idx] - (time_points[t_idx - 1] if t_idx > 0 else 0.0)
+        dt = current_time - (time_points[t_idx - 1] if t_idx > 0 else 0.0)
+        # Note: If time_points are non-monotonic, dt could be negative or zero,
+        # which will be caught by the monotonicity check above.
 
         # Update node positions using explicit Euler integration (simplistic)
         # This assumes nodes are moving based on their velocity.
@@ -241,7 +270,10 @@ if __name__ == "__main__":
     output_mesh_json = os.path.join(current_script_dir, "../data/testing-input-output/fluid_mesh_data.json")
 
     # Call the function to generate the mesh data JSON
-    generate_fluid_mesh_data_json(navier_stokes_file, output_mesh_json)
+    try:
+        generate_fluid_mesh_data_json(navier_stokes_file, output_mesh_json)
+    except Exception as e:
+        print(f"An error occurred during execution: {e}")
 
 
 
