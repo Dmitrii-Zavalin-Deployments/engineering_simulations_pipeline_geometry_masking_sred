@@ -64,9 +64,9 @@ jobs:
       - name: Debug Output Directory
         run: ls -R "$GITHUB_WORKSPACE/data/testing-input-output"
 
-      # --- COMMENTED OUT: Test Steps ---
-      # - name: Run Unit Tests (Mesh Processing)
-      #   run: pytest tests/test_mesh_processing_pipeline.py --verbose
+      # --- Test Steps ---
+      - name: Run Tests
+        run: pytest tests/ --verbose
       
       # --- REMOVED: Upload Generated Fluid Mesh JSON Artifact ---
       # This step is no longer needed as the file is committed directly.
