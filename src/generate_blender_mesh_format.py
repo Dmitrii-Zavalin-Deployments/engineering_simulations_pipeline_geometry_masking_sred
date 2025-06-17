@@ -31,7 +31,7 @@ def generate_fluid_mesh_data_json(
         navier_stokes_results_path (str): Path to the navier_stokes_results.json file.
         output_mesh_json_path (str): Path to save the generated fluid_mesh_data.json file.
     """
-    print(f"Loading data from {navier_stier_stokes_results_path}")
+    print(f"Loading data from {navier_stokes_results_path}") # FIX: Corrected variable name
 
     # Ensure output directory exists
     output_dir = os.path.dirname(output_mesh_json_path)
