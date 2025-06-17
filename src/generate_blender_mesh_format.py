@@ -2,6 +2,23 @@ import json
 import numpy as np
 import os
 
+# Moved get_1d_index to the module level
+def get_1d_index(ix, iy, iz, nx, ny):
+    """
+    Calculates the 1D index from 3D coordinates in a flattened 3D grid.
+
+    Args:
+        ix (int): X-coordinate.
+        iy (int): Y-coordinate.
+        iz (int): Z-coordinate.
+        nx (int): Number of nodes along the X-axis.
+        ny (int): Number of nodes along the Y-axis.
+
+    Returns:
+        int: The 1D index.
+    """
+    return iz * (ny * nx) + iy * nx + ix
+
 def generate_fluid_mesh_data_json(
     navier_stokes_results_path,
     output_mesh_json_path="data/testing-input-output/fluid_mesh_data.json"
@@ -14,7 +31,7 @@ def generate_fluid_mesh_data_json(
         navier_stokes_results_path (str): Path to the navier_stokes_results.json file.
         output_mesh_json_path (str): Path to save the generated fluid_mesh_data.json file.
     """
-    print(f"Loading data from {navier_stokes_results_path}")
+    print(f"Loading data from {navier_stier_stokes_results_path}")
 
     # Ensure output directory exists
     output_dir = os.path.dirname(output_mesh_json_path)
@@ -110,8 +127,7 @@ def generate_fluid_mesh_data_json(
     # --- Input Validation End ---
     
     # --- Identify Surface Nodes and Create Static Faces ---
-    def get_1d_index(ix, iy, iz, nx, ny):
-        return iz * (ny * nx) + iy * nx + ix
+    # The get_1d_index function is now at the module level and can be called directly.
 
     boundary_1d_indices = set()
     for iz in range(num_z):
