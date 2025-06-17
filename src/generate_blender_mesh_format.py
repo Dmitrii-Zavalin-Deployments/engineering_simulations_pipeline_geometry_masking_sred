@@ -29,9 +29,10 @@ def generate_fluid_mesh_data_json(
     except FileNotFoundError as e:
         print(f"Error: Input file not found: {e}. Please ensure path is correct.")
         # For testing, it's better to raise an exception here to signal failure
-        raise FileNotFoundError(f"Input file not found: {e}") 
-    except json.JSONDecodeError as e:
-        raise ValueError(f"Invalid JSON format in input file: {e}")
+        raise FileNotFoundError(f"Input file not found: {e}")
+    # REMOVED the specific 'except json.JSONDecodeError' block.
+    # json.JSONDecodeError will now propagate directly from json.load(f) if the file is malformed.
+
 
     # --- Input Validation Start ---
 
@@ -121,8 +122,6 @@ def generate_fluid_mesh_data_json(
                                iz == 0 or iz == num_z - 1)
                 if is_boundary:
                     idx_1d = get_1d_index(ix, iy, iz, num_x, num_y)
-                    # The check 'if idx_1d < len(initial_nodes_coords)' is now redundant
-                    # due to prior validation, but doesn't hurt.
                     boundary_1d_indices.add(idx_1d)
 
     sorted_boundary_indices = sorted(list(boundary_1d_indices))
