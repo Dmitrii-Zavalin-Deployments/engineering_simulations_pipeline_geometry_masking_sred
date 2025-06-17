@@ -6,50 +6,84 @@ def generate_fluid_mesh_data_json(
     navier_stokes_results_path,
     output_mesh_json_path="data/testing-input-output/fluid_mesh_data.json"
 ):
-    """
-    Processes fluid simulation data to extract outer boundary nodes as a mesh
-    and saves their animated positions and static faces into a JSON file.
-
-    Args:
-        navier_stokes_results_path (str): Path to the navier_stokes_results.json file.
-        output_mesh_json_path (str): Path to save the generated fluid_mesh_data.json file.
-    """
     print(f"Loading data from {navier_stokes_results_path}")
 
-    # Ensure output directory exists
     output_dir = os.path.dirname(output_mesh_json_path)
     if output_dir and not os.path.exists(output_dir):
         os.makedirs(output_dir)
         print(f"Created output directory: {output_dir}")
 
-    # 1. Load Input Data
     try:
         with open(navier_stokes_results_path, 'r') as f:
             navier_stokes_data = json.load(f)
     except FileNotFoundError as e:
         print(f"Error: Input file not found: {e}. Please ensure path is correct.")
-        return
+        return # Or raise an error if you prefer the function to strictly fail
 
+    # --- Input Validation Start ---
+    # Validate 'time_points' existence
+    if 'time_points' not in navier_stokes_data:
+        raise KeyError("Input JSON is missing 'time_points' key.")
     time_points = np.array(navier_stokes_data['time_points'])
-    
-    # IMPORTANT: The provided navier_stokes_results.json structure shows 'nodes_coords'
-    # and 'velocity_history' at the top level, but 'nodes_coords' is under 'mesh_info'
-    # and is static. 'velocity_history' is per time step.
-    # To animate the mesh, we need per-time-step node coordinates.
-    # Since your current navier_stokes_results.json implies static nodes_coords,
-    # we'll use the 'velocity_history' to *derive* animated node positions.
-    # This is a simplification; a real simulation would likely output animated
-    # node positions directly.
+
+    # Validate 'mesh_info' existence and its sub-keys
+    if 'mesh_info' not in navier_stokes_data:
+        raise KeyError("Input JSON is missing 'mesh_info' key.")
+    if 'nodes_coords' not in navier_stokes_data['mesh_info']:
+        raise KeyError("Input JSON is missing 'mesh_info.nodes_coords' key.")
+    if 'grid_shape' not in navier_stokes_data['mesh_info']:
+        raise KeyError("Input JSON is missing 'mesh_info.grid_shape' key.")
 
     initial_nodes_coords = np.array(navier_stokes_data['mesh_info']['nodes_coords'])
     grid_shape = navier_stokes_data['mesh_info']['grid_shape'] # [Z, Y, X]
-    velocity_history = navier_stokes_data['velocity_history'] # Per time step, per node
+
+    # Validate grid_shape: must be 3 integers, and positive
+    if not (isinstance(grid_shape, list) and len(grid_shape) == 3 and
+            all(isinstance(dim, int) and dim > 0 for dim in grid_shape)):
+        raise ValueError(
+            f"Invalid 'grid_shape' in mesh_info. Expected a list of 3 positive integers, got {grid_shape}."
+        )
 
     num_z, num_y, num_x = grid_shape
+
+    # Validate nodes_coords size against grid_shape
+    expected_total_nodes = num_z * num_y * num_x
+    if len(initial_nodes_coords) != expected_total_nodes:
+        raise ValueError(
+            f"Mismatch between 'nodes_coords' size ({len(initial_nodes_coords)}) "
+            f"and 'grid_shape' calculated total nodes ({expected_total_nodes})."
+        )
     
+    # Validate 'velocity_history' existence
+    if 'velocity_history' not in navier_stokes_data:
+        raise KeyError("Input JSON is missing 'velocity_history' key.")
+    velocity_history = navier_stokes_data['velocity_history'] # Per time step, per node
+
+    # Validate velocity_history structure and size
+    if not isinstance(velocity_history, list) or len(velocity_history) != len(time_points):
+        raise ValueError(
+            f"Velocity history must be a list with the same number of entries as time points ({len(time_points)})."
+        )
+    for t_idx, velocities_at_t in enumerate(velocity_history):
+        if not isinstance(velocities_at_t, list) or len(velocities_at_t) != expected_total_nodes:
+            raise ValueError(
+                f"Velocity data for time step {t_idx} has incorrect number of entries. "
+                f"Expected {expected_total_nodes}, got {len(velocities_at_t)}."
+            )
+        # Optional: Further check if each velocity entry is a 3-element list of numbers
+        for node_vel in velocities_at_t:
+            if not (isinstance(node_vel, list) and len(node_vel) == 3 and
+                    all(isinstance(v, (int, float)) for v in node_vel)):
+                raise ValueError(
+                    f"Velocity entry for a node is malformed at time step {t_idx}. Expected [vx, vy, vz] of numbers."
+                )
+
+    # --- Input Validation End ---
+    
+    # Rest of your existing code remains the same
+
     # --- Identify Surface Nodes and Create Static Faces ---
     def get_1d_index(ix, iy, iz, nx, ny):
-        # Index = z_i * (num_y * num_x) + y_i * num_x + x_i
         return iz * (ny * nx) + iy * nx + ix
 
     boundary_1d_indices = set()
@@ -61,7 +95,7 @@ def generate_fluid_mesh_data_json(
                                iz == 0 or iz == num_z - 1)
                 if is_boundary:
                     idx_1d = get_1d_index(ix, iy, iz, num_x, num_y)
-                    if idx_1d < len(initial_nodes_coords):
+                    if idx_1d < len(initial_nodes_coords): # This check is redundant after nodes_coords_size_mismatch validation
                         boundary_1d_indices.add(idx_1d)
 
     sorted_boundary_indices = sorted(list(boundary_1d_indices))
@@ -208,3 +242,6 @@ if __name__ == "__main__":
 
     # Call the function to generate the mesh data JSON
     generate_fluid_mesh_data_json(navier_stokes_file, output_mesh_json)
+
+
+
