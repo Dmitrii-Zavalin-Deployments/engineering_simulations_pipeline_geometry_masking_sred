@@ -1,2 +1,1 @@
-# engineering_simulations_pipeline_mesh_sred
-Todo: to fix errors with mesh faces
+# engineering_simulations_pipeline_domain_grid_sred
