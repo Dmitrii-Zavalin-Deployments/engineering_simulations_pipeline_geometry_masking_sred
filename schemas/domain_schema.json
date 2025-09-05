@@ -1,64 +1,52 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://yourdomain.org/schemas/domain_schema.json",
-  "title": "Domain Definition Schema",
-  "description": "Schema for validating spatial domain extents and resolution values in simulation pipelines.",
   "type": "object",
-  "required": ["domain_definition"],
+  "required": [
+    "geometry_mask_flat",
+    "geometry_mask_shape",
+    "mask_encoding",
+    "flattening_order"
+  ],
   "properties": {
-    "domain_definition": {
+    "geometry_mask_flat": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "enum": [0, 1]
+      },
+      "minItems": 1,
+      "description": "Flattened voxel mask with binary encoding (0 = solid, 1 = fluid)"
+    },
+    "geometry_mask_shape": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": 1
+      },
+      "minItems": 3,
+      "maxItems": 3,
+      "description": "3D shape of the voxel grid as [x, y, z] dimensions"
+    },
+    "mask_encoding": {
       "type": "object",
-      "required": [
-        "min_x", "max_x",
-        "min_y", "max_y",
-        "min_z", "max_z",
-        "nx", "ny", "nz"
-      ],
+      "required": ["fluid", "solid"],
       "properties": {
-        "min_x": {
-          "type": "number",
-          "description": "Minimum bound in x-direction"
-        },
-        "max_x": {
-          "type": "number",
-          "description": "Maximum bound in x-direction",
-          "minimum": 0.0
-        },
-        "min_y": {
-          "type": "number",
-          "description": "Minimum bound in y-direction"
-        },
-        "max_y": {
-          "type": "number",
-          "description": "Maximum bound in y-direction",
-          "minimum": 0.0
-        },
-        "min_z": {
-          "type": "number",
-          "description": "Minimum bound in z-direction"
-        },
-        "max_z": {
-          "type": "number",
-          "description": "Maximum bound in z-direction. Must be ≥ min_z; enforced in application logic",
-          "minimum": 0.0
-        },
-        "nx": {
+        "fluid": {
           "type": "integer",
-          "minimum": 1,
-          "description": "Grid resolution in x-direction"
+          "enum": [1]
         },
-        "ny": {
+        "solid": {
           "type": "integer",
-          "minimum": 1,
-          "description": "Grid resolution in y-direction"
-        },
-        "nz": {
-          "type": "integer",
-          "minimum": 1,
-          "description": "Grid resolution in z-direction"
+          "enum": [0]
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "description": "Binary encoding map for fluid and solid regions"
+    },
+    "flattening_order": {
+      "type": "string",
+      "enum": ["x-major", "y-major", "z-major"],
+      "description": "Order in which the 3D mask was flattened"
     }
   },
   "additionalProperties": false
