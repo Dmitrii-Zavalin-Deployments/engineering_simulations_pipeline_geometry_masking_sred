@@ -68,35 +68,6 @@ jobs:
       - name: Run Tests
         run: pytest tests/ --verbose -ra
       
-      # --- REMOVED: Upload Generated Fluid Mesh JSON Artifact ---
-      # This step is no longer needed as the file is committed directly.
-      
-      # - name: Commit and Push Fluid Mesh Data to Repository
-      #   env:
-      #     GIT_USER_NAME: ${{ secrets.GIT_USER_NAME }}
-      #     GIT_USER_EMAIL: ${{ secrets.GIT_USER_EMAIL }}
-      #   run: |
-      #     git config --global user.name "${GIT_USER_NAME}"
-      #     git config --global user.email "${GIT_USER_EMAIL}"
-      
-      #     cd "$GITHUB_WORKSPACE"
-      
-      #     GENERATED_FILE="data/testing-input-output/fluid_mesh_data.json"
-          
-      #     if [ -f "$GENERATED_FILE" ]; then
-      #       git add "$GENERATED_FILE"
-      #       git status
-          
-      #       if [[ $(git diff --cached --quiet; echo $?) -ne 0 ]]; then
-      #         git commit -m "Auto-update: Generated animated fluid mesh data (JSON)"
-      #         git push origin HEAD
-      #       else
-      #         echo "✅ No changes to commit!"
-      #       fi
-      #     else
-      #       echo "❌ No fluid mesh data JSON detected, skipping commit."
-      #     fi
-
       - name: Make `upload_to_dropbox.sh` Executable
         run: chmod +x src/upload_to_dropbox.sh
   
