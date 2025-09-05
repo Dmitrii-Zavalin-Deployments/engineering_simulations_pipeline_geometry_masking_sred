@@ -118,6 +118,11 @@ jobs:
           ")
           echo "resolution=$RESOLUTION" >> $GITHUB_OUTPUT
 
+      - name: 📏 Print extracted resolution value
+        run: |
+          echo "✅ Resolution extracted from flow_data.json:"
+          echo "Resolution = ${{ steps.extract_resolution.outputs.resolution }} meters"
+
       - name: 🧠 Run domain extraction via Gmsh CLI module
         run: |
           python3 src/gmsh_runner.py \
