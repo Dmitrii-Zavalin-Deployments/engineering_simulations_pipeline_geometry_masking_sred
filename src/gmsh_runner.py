@@ -20,15 +20,15 @@ from src.utils.input_validation import load_resolution_profile
 
 def extract_bounding_box_with_gmsh(step_path, resolution=None):
     """
-    Parses STEP geometry with Gmsh and returns domain_definition
-    including bounding box and grid resolution.
+    Parses STEP geometry with Gmsh and returns geometry_mask block
+    including bounding box-derived shape and stubbed mask metadata.
 
     Parameters:
         step_path (str or Path): Path to STEP file
         resolution (float or None): Grid resolution in meters. If None, fallback profile will be used.
 
     Returns:
-        dict: domain_definition dictionary
+        dict: geometry_mask dictionary matching schema
     """
     if not os.path.isfile(step_path):
         raise FileNotFoundError(f"STEP file not found: {step_path}")
@@ -63,15 +63,14 @@ def extract_bounding_box_with_gmsh(step_path, resolution=None):
         nz = int((max_z - min_z) / resolution)
 
         return {
-            "min_x": min_x,
-            "max_x": max_x,
-            "min_y": min_y,
-            "max_y": max_y,
-            "min_z": min_z,
-            "max_z": max_z,
-            "nx": nx,
-            "ny": ny,
-            "nz": nz
+            # 🧩 Stubbed binary mask — replace with actual voxelization later
+            "geometry_mask_flat": [1] * (nx * ny * nz),  # Stub: all fluid
+            "geometry_mask_shape": [nx, ny, nz],
+            "mask_encoding": {
+                "fluid": 1,
+                "solid": 0
+            },
+            "flattening_order": "z-major"  # Stub: default flattening order
         }
     finally:
         gmsh.finalize()  # ✅ Guaranteed shutdown
@@ -80,20 +79,20 @@ def extract_bounding_box_with_gmsh(step_path, resolution=None):
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="Gmsh STEP parser for domain metadata")
+    parser = argparse.ArgumentParser(description="Gmsh STEP parser for geometry mask metadata")
     parser.add_argument("--step", type=str, required=True, help="Path to STEP file")
     parser.add_argument("--resolution", type=float, help="Grid resolution in meters")
-    parser.add_argument("--output", type=str, help="Path to write domain JSON")
+    parser.add_argument("--output", type=str, help="Path to write geometry mask JSON")
 
     args = parser.parse_args()
 
     result = extract_bounding_box_with_gmsh(args.step, resolution=args.resolution)
 
-    print(json.dumps({"domain_definition": result}, indent=2))
+    print(json.dumps(result, indent=2))
 
     if args.output:
         with open(args.output, "w") as f:
-            json.dump({"domain_definition": result}, f, indent=2)
+            json.dump(result, f, indent=2)
 
 
 
