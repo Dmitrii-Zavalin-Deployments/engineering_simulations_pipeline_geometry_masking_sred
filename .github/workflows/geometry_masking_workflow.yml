@@ -110,24 +110,21 @@ jobs:
       - name: 🧠 Extract resolution from flow_data.json
         id: extract_resolution
         run: |
-          RESOLUTION=$(python -c "
-          import json
-          with open('data/testing-input-output/flow_data.json') as f:
-              data = json.load(f)
-              print(data.get('model_properties', {}).get('default_resolution', 0.01))
-          ")
-          echo "resolution=$RESOLUTION" >> $GITHUB_OUTPUT
+          echo "Reading resolution from flow_data.json..."
+          RESOLUTION=$(python -c "import json; print(json.load(open('data/testing-input-output/flow_data.json'))['model_properties']['default_resolution'])")
+          echo "Extracted resolution: $RESOLUTION"
+          echo "resolution=$RESOLUTION" >> $GITHUB_ENV
 
       - name: 📏 Print extracted resolution value
         run: |
           echo "✅ Resolution extracted from flow_data.json:"
-          echo "Resolution = ${{ steps.extract_resolution.outputs.resolution }} meters"
+          echo "Resolution = ${{ env.resolution }} meters"
 
       - name: 🧠 Run domain extraction via Gmsh CLI module
         run: |
           python3 src/gmsh_runner.py \
             --step data/testing-input-output/input.step \
-            --resolution ${{ steps.extract_resolution.outputs.resolution }} \
+            --resolution ${{ env.resolution }} \
             --output data/testing-input-output/geometry_masking_gmsh.json
 
       - name: 🔍 Validate output JSON against schema
