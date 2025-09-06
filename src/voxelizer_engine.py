@@ -3,7 +3,7 @@
 """
 Voxelizer Engine
 ----------------
-Generates a voxel grid from STEP geometry using bounding box and resolution.
+Generates a voxel grid placeholder and shape from STEP geometry using bounding box and resolution.
 This module replaces stubbed shape logic in gmsh_runner.py and feeds downstream masking modules.
 """
 
@@ -17,7 +17,7 @@ def generate_voxel_grid(step_path, resolution):
 
     Returns:
         tuple: (voxel_grid, shape) where:
-            - voxel_grid: placeholder object (to be replaced with real grid)
+            - voxel_grid: dict with bounding box and metadata
             - shape: [nx, ny, nz] voxel dimensions
     """
     import gmsh
@@ -43,7 +43,7 @@ def generate_voxel_grid(step_path, resolution):
 
         shape = [nx, ny, nz]
 
-        # Placeholder voxel grid (to be replaced with real geometry sampling)
+        # Placeholder voxel grid metadata
         voxel_grid = {
             "bbox": [min_x, min_y, min_z, max_x, max_y, max_z],
             "resolution": resolution,
