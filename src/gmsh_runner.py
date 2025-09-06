@@ -20,8 +20,8 @@ from src.utils.input_validation import load_resolution_profile
 # 🧱 Import modular masking components
 from voxelizer_engine import generate_voxel_grid
 from flow_region_masker import apply_mask
-from fluid_origin_mapper import map_fluid_origins
-from geometry_topology_analyzer import analyze_topology
+from fluid_origin_mapper import map_fluid_origins  # ✅ Mixed flow origin tracking
+from geometry_topology_analyzer import analyze_topology  # ✅ Structural edge-case detection
 
 
 def extract_bounding_box_with_gmsh(step_path, resolution=None, flow_region="internal"):
@@ -60,7 +60,11 @@ def extract_bounding_box_with_gmsh(step_path, resolution=None, flow_region="inte
         # 🧱 Modular voxelization and masking pipeline
         voxel_grid, shape = generate_voxel_grid(step_path, resolution)
         mask = apply_mask(voxel_grid, flow_region)
-        origin_map = map_fluid_origins(mask, voxel_grid, flow_region)
+
+        # ✅ Track fluid origin metadata only for 'mixed' flow regions
+        origin_map = map_fluid_origins(mask, voxel_grid, flow_region) if flow_region == "mixed" else {}
+
+        # ✅ Analyze geometry topology for structural anomalies
         topology_flags = analyze_topology(voxel_grid)
 
         return {
