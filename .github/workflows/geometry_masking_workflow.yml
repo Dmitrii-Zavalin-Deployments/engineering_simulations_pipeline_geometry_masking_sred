@@ -107,24 +107,29 @@ jobs:
             fi
           fi
 
-      - name: 🧠 Extract resolution from flow_data.json
-        id: extract_resolution
+      - name: 🧠 Extract resolution and flow_region from flow_data.json
+        id: extract_config
         run: |
-          echo "Reading resolution from flow_data.json..."
+          echo "Reading resolution and flow_region from flow_data.json..."
           RESOLUTION=$(python -c "import json; print(json.load(open('data/testing-input-output/flow_data.json'))['model_properties']['default_resolution'])")
+          FLOW_REGION=$(python -c "import json; print(json.load(open('data/testing-input-output/flow_data.json'))['model_properties']['flow_region'])")
           echo "Extracted resolution: $RESOLUTION"
+          echo "Extracted flow_region: $FLOW_REGION"
           echo "resolution=$RESOLUTION" >> $GITHUB_ENV
+          echo "flow_region=$FLOW_REGION" >> $GITHUB_ENV
 
-      - name: 📏 Print extracted resolution value
+      - name: 📏 Print extracted configuration values
         run: |
-          echo "✅ Resolution extracted from flow_data.json:"
+          echo "✅ Configuration extracted from flow_data.json:"
           echo "Resolution = ${{ env.resolution }} meters"
+          echo "Flow Region = ${{ env.flow_region }}"
 
       - name: 🧠 Run domain extraction via Gmsh CLI module
         run: |
           python3 src/gmsh_runner.py \
             --step data/testing-input-output/input.step \
             --resolution ${{ env.resolution }} \
+            --flow_region ${{ env.flow_region }} \
             --output data/testing-input-output/geometry_masking_gmsh.json
 
       - name: 🔍 Validate output JSON against schema
@@ -180,8 +185,6 @@ jobs:
           APP_SECRET: ${{ secrets.APP_SECRET }}
           REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
         run: src/upload_to_dropbox.sh
-
-
 
 
 
