@@ -3,8 +3,9 @@
 """
 Flow Region Masker
 ------------------
-Applies binary fluid/solid classification to a voxel grid based on flow context.
+Applies geometry-aware fluid/solid classification to a voxel grid based on flow context.
 Supports 'internal', 'external', and 'mixed' modes for CFD preprocessing.
+Uses Gmsh point containment to determine voxel classification.
 """
 
 def apply_mask(voxel_grid, flow_region):
@@ -12,47 +13,66 @@ def apply_mask(voxel_grid, flow_region):
     Classifies each voxel as fluid (1) or solid (0) based on flow_region.
 
     Parameters:
-        voxel_grid (dict): Voxel grid metadata from voxelizer_engine
+        voxel_grid (dict): Voxel grid metadata from shape_builder or voxelizer_engine.
+                           Must include 'source_path' to reopen STEP geometry.
         flow_region (str): One of 'internal', 'external', 'mixed'
 
     Returns:
         List[int]: Flattened binary mask (fluid=1, solid=0)
     """
+    import gmsh
+
     shape = voxel_grid["shape"]
+    bbox = voxel_grid["bbox"]
+    resolution = voxel_grid["resolution"]
+    source_path = voxel_grid.get("source_path")
+    if not source_path:
+        raise ValueError("Missing 'source_path' in voxel_grid metadata.")
+
     nx, ny, nz = shape
+    min_x, min_y, min_z = bbox[0], bbox[1], bbox[2]
 
-    total_voxels = nx * ny * nz
+    gmsh.initialize()
+    try:
+        gmsh.model.add("masking_model")
+        gmsh.open(source_path)
 
-    if flow_region == "internal":
-        # Fluid inside the geometry — simulate cavity
-        # For simplicity: center region fluid, rest solid
-        mask = [0] * total_voxels
+        volumes = gmsh.model.getEntities(3)
+        if not volumes:
+            raise ValueError("No volume entities found in geometry.")
+
+        entity_tag = volumes[0][1]
+        mask = []
+
         for z in range(nz):
             for y in range(ny):
                 for x in range(nx):
                     i = flatten_index(x, y, z, nx, ny, nz)
-                    if 0 < x < nx - 1 and 0 < y < ny - 1 and 0 < z < nz - 1:
-                        mask[i] = 1
+
+                    # Compute voxel center coordinates
+                    px = min_x + (x + 0.5) * resolution
+                    py = min_y + (y + 0.5) * resolution
+                    pz = min_z + (z + 0.5) * resolution
+
+                    inside = gmsh.model.isInside(3, entity_tag, [px, py, pz])
+
+                    if flow_region == "internal":
+                        value = 1 if inside else 0
+                    elif flow_region == "external":
+                        value = 1 if not inside else 0
+                    elif flow_region == "mixed":
+                        value = 1  # All fluid — origin tracked separately
+                    else:
+                        raise ValueError(f"Unsupported flow_region: {flow_region}")
+
+                    mask.append(value)
+
         return mask
-
-    elif flow_region == "external":
-        # Fluid surrounds the geometry — simulate shell
-        # For simplicity: outer layer fluid, center solid
-        mask = [1] * total_voxels
-        for z in range(1, nz - 1):
-            for y in range(1, ny - 1):
-                for x in range(1, nx - 1):
-                    i = flatten_index(x, y, z, nx, ny, nz)
-                    mask[i] = 0
-        return mask
-
-    elif flow_region == "mixed":
-        # Fluid both inside and outside — simulate porous shell
-        # For simplicity: all fluid
-        return [1] * total_voxels
-
-    else:
-        raise ValueError(f"Unsupported flow_region: {flow_region}")
+    finally:
+        try:
+            gmsh.finalize()
+        except Exception:
+            pass
 
 
 def flatten_index(x, y, z, nx, ny, nz):
