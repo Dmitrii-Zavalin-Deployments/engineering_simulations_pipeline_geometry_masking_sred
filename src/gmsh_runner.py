@@ -59,6 +59,16 @@ def extract_bounding_box_with_gmsh(step_path, resolution=None, flow_region="inte
 
         # 🧱 Modular voxelization and masking pipeline
         voxel_grid, shape = generate_voxel_grid(step_path, resolution)
+
+        # ✅ Log voxel grid shape and total size
+        total_voxels = shape[0] * shape[1] * shape[2]
+        print(f"Voxel grid shape: {shape} → total voxels: {total_voxels}")
+
+        # ✅ Safety check to prevent memory exhaustion
+        max_voxels = 10_000_000
+        if total_voxels > max_voxels:
+            raise MemoryError(f"Voxel grid too large: {total_voxels} voxels exceeds safe limit of {max_voxels}")
+
         mask = apply_mask(voxel_grid, flow_region)
 
         # ✅ Track fluid origin metadata only for 'mixed' flow regions
@@ -79,7 +89,10 @@ def extract_bounding_box_with_gmsh(step_path, resolution=None, flow_region="inte
             "topology_flags": topology_flags
         }
     finally:
-        gmsh.finalize()  # ✅ Guaranteed shutdown
+        try:
+            gmsh.finalize()  # ✅ Safe shutdown
+        except Exception:
+            pass  # Prevent crash if already finalized
 
 
 if __name__ == "__main__":
