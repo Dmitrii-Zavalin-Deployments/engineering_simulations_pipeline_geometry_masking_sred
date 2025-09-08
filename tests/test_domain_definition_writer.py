@@ -97,28 +97,32 @@ def test_extremely_large_float_bounds():
 def test_payload_matches_schema(domain_schema):
     payload = {
         "domain_definition": {
-            "min_x": 0.0, "max_x": 3.0,
-            "min_y": 0.0, "max_y": 1.0,
-            "min_z": 0.0, "max_z": 1.0,
-            "nx": 3, "ny": 2, "nz": 1
+            "geometry_mask_flat": [0, 1, 0],
+            "geometry_mask_shape": [3, 1, 1],
+            "mask_encoding": {"fluid": 1, "solid": 0},
+            "flattening_order": "x-major"
         }
     }
-
     validate(instance=payload, schema=domain_schema)
     assert True
 
 @pytest.mark.parametrize("key", [
-    "min_x", "max_x", "min_y", "max_y", "min_z", "max_z", "nx", "ny", "nz"
+    "geometry_mask_flat", "geometry_mask_shape", "mask_encoding", "flattening_order"
 ])
 def test_missing_keys_trigger_validation_error(domain_schema, key):
+    """
+    Tests that removing any required key from the domain_definition
+    causes a schema validation error, and that the error message
+    mentions the missing key.
+    """
     domain = {
-        "min_x": 0.0, "max_x": 3.0,
-        "min_y": 0.0, "max_y": 1.0,
-        "min_z": 0.0, "max_z": 1.0,
-        "nx": 3, "ny": 2, "nz": 1
+        "geometry_mask_flat": [0, 1, 0],
+        "geometry_mask_shape": [3, 1, 1],
+        "mask_encoding": {"fluid": 1, "solid": 0},
+        "flattening_order": "x-major"
     }
     domain.pop(key)
-    payload = { "domain_definition": domain }
+    payload = {"domain_definition": domain}
 
     with pytest.raises(ValidationError) as exc:
         validate(instance=payload, schema=domain_schema)
@@ -126,26 +130,24 @@ def test_missing_keys_trigger_validation_error(domain_schema, key):
 
 def test_flat_payload_structure_rejected(domain_schema):
     flat_payload = {
-        "min_x": 0.0, "max_x": 3.0,
-        "min_y": 0.0, "max_y": 1.0,
-        "min_z": 0.0, "max_z": 1.0,
-        "nx": 3, "ny": 2, "nz": 1
+        "geometry_mask_flat": [0, 1, 0],
+        "geometry_mask_shape": [3, 1, 1],
+        "mask_encoding": {"fluid": 1, "solid": 0},
+        "flattening_order": "x-major"
     }
-
     with pytest.raises(ValidationError):
         validate(instance=flat_payload, schema=domain_schema)
 
 def test_extra_properties_rejected(domain_schema):
     payload = {
         "domain_definition": {
-            "min_x": 0.0, "max_x": 3.0,
-            "min_y": 0.0, "max_y": 1.0,
-            "min_z": 0.0, "max_z": 1.0,
-            "nx": 3, "ny": 2, "nz": 1,
+            "geometry_mask_flat": [0, 1, 0],
+            "geometry_mask_shape": [3, 1, 1],
+            "mask_encoding": {"fluid": 1, "solid": 0},
+            "flattening_order": "x-major",
             "extra": 99
         }
     }
-
     with pytest.raises(ValidationError):
         validate(instance=payload, schema=domain_schema)
 
