@@ -18,16 +18,14 @@ from src.utils.gmsh_input_check import validate_step_has_volumes
 from src.utils.input_validation import load_resolution_profile
 
 # 🧱 Import modular masking components
-from voxelizer_engine import generate_voxel_grid
-from flow_region_masker import apply_mask
-from fluid_origin_mapper import map_fluid_origins  # ✅ Mixed flow origin tracking
-from geometry_topology_analyzer import analyze_topology  # ✅ Structural edge-case detection
+from shape_builder import build_shape_from_geometry
+from semantic_mask_generator import generate_semantic_stub
 
 
 def extract_bounding_box_with_gmsh(step_path, resolution=None, flow_region="internal"):
     """
     Parses STEP geometry with Gmsh and returns geometry_definition block
-    including voxel grid, binary mask, and optional metadata.
+    including voxel grid shape and binary mask.
 
     Parameters:
         step_path (str or Path): Path to STEP file
@@ -54,11 +52,10 @@ def extract_bounding_box_with_gmsh(step_path, resolution=None, flow_region="inte
         gmsh.logger.start()
 
         validate_step_has_volumes(step_path)
-
         gmsh.open(str(step_path))  # ✅ Ensure fileName is str
 
-        # 🧱 Modular voxelization and masking pipeline
-        voxel_grid, shape = generate_voxel_grid(step_path, resolution)
+        # ✅ Compute voxel grid shape from geometry
+        shape = build_shape_from_geometry(step_path, resolution)
 
         # ✅ Log voxel grid shape and total size
         total_voxels = shape[0] * shape[1] * shape[2]
@@ -69,25 +66,10 @@ def extract_bounding_box_with_gmsh(step_path, resolution=None, flow_region="inte
         if total_voxels > max_voxels:
             raise MemoryError(f"Voxel grid too large: {total_voxels} voxels exceeds safe limit of {max_voxels}")
 
-        mask = apply_mask(voxel_grid, flow_region)
+        # ✅ Generate semantic mask using geometry-aware stub logic
+        geometry_definition = generate_semantic_stub(step_path, resolution, flow_region)
 
-        # ✅ Track fluid origin metadata only for 'mixed' flow regions
-        origin_map = map_fluid_origins(mask, voxel_grid, flow_region) if flow_region == "mixed" else {}
-
-        # ✅ Analyze geometry topology for structural anomalies
-        topology_flags = analyze_topology(voxel_grid)
-
-        return {
-            "geometry_mask_flat": mask,
-            "geometry_mask_shape": shape,
-            "mask_encoding": {
-                "fluid": 1,
-                "solid": 0
-            },
-            "flattening_order": "x-major",
-            "fluid_origin": origin_map,
-            "topology_flags": topology_flags
-        }
+        return geometry_definition
     finally:
         try:
             gmsh.finalize()  # ✅ Safe shutdown
