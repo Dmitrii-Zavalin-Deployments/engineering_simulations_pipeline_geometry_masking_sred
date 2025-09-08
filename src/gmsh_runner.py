@@ -79,7 +79,19 @@ def extract_bounding_box_with_gmsh(step_path, resolution=None, flow_region="inte
 
         max_voxels = 10_000_000
         if total_voxels > max_voxels:
-            raise MemoryError(f"Voxel grid too large: {total_voxels} exceeds safe limit of {max_voxels}")
+            # Estimate a safe resolution in millimeters based on the X dimension
+            safe_resolution_mm = (max_x - min_x) / (max_voxels ** (1/3))
+
+            raise MemoryError(
+                f"Voxel grid too large: {total_voxels} exceeds safe limit of {max_voxels}.\n"
+                f"Model units are in millimeters. The current resolution is likely too fine.\n"
+                f"To avoid exceeding memory limits in GitHub Actions, update the "
+                f"'default_resolution' value in 'flow_data.json' "
+                f"(located in the engineering_simulation_pipeline folder in Dropbox) "
+                f"to at least {safe_resolution_mm:.2f} mm "
+                f"(which is {safe_resolution_mm:.5f} m) or larger.\n"
+                f"This will reduce the voxel count and keep the job within CI memory limits."
+            )
 
         # Build mask using geometry-aware classification
         mask = []
