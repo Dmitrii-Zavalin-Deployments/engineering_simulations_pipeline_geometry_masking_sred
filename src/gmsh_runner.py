@@ -25,9 +25,9 @@ def extract_bounding_box_with_gmsh(step_path, resolution=None, flow_region="inte
 
     Parameters:
         step_path (str or Path): Path to STEP file
-        resolution (float or None): Grid resolution in meters. If None, fallback profile will be used.
-        flow_region (str): Flow context ("internal", "external", "mixed")
-        padding_factor (int): Number of voxel layers to pad around bounding box for external/mixed
+        resolution (float or None): Grid resolution in millimeters (model units).
+        flow_region (str): Flow context ("internal" or "external")
+        padding_factor (int): Number of voxel layers to pad around bounding box for external
 
     Returns:
         dict: geometry_definition dictionary matching schema
@@ -38,9 +38,9 @@ def extract_bounding_box_with_gmsh(step_path, resolution=None, flow_region="inte
     if resolution is None:
         try:
             profile = load_resolution_profile()
-            resolution = profile.get("default_resolution", {}).get("dx", 0.01)
+            resolution = profile.get("default_resolution", {}).get("dx", 2)  # default in mm
         except Exception:
-            resolution = 0.01  # 🔧 Final default fallback
+            resolution = 2  # 🔧 Final default fallback in mm
 
     gmsh.initialize()
     try:
@@ -55,11 +55,11 @@ def extract_bounding_box_with_gmsh(step_path, resolution=None, flow_region="inte
             raise ValueError("No volume entities found in STEP file.")
         entity_tag = volumes[0][1]
 
-        # Get bounding box of the geometry
+        # Get bounding box of the geometry (in mm)
         min_x, min_y, min_z, max_x, max_y, max_z = gmsh.model.getBoundingBox(3, entity_tag)
 
-        # Expand bounding box for external/mixed
-        if flow_region in ("external", "mixed"):
+        # Expand bounding box for external
+        if flow_region == "external":
             pad = padding_factor * resolution
             min_x -= pad
             min_y -= pad
@@ -89,7 +89,7 @@ def extract_bounding_box_with_gmsh(step_path, resolution=None, flow_region="inte
                 f"'default_resolution' value in 'flow_data.json' "
                 f"(located in the engineering_simulation_pipeline folder in Dropbox) "
                 f"to at least {safe_resolution_mm:.2f} mm "
-                f"(which is {safe_resolution_mm:.5f} m) or larger.\n"
+                f"(which is {safe_resolution_mm/1000:.5f} m) or larger.\n"
                 f"This will reduce the voxel count and keep the job within CI memory limits."
             )
 
@@ -105,8 +105,10 @@ def extract_bounding_box_with_gmsh(step_path, resolution=None, flow_region="inte
 
                     if flow_region == "internal":
                         value = 1 if not inside else 0
-                    else:  # unified external/mixed
+                    elif flow_region == "external":
                         value = 1 if not inside else 0
+                    else:
+                        raise ValueError(f"Unsupported flow_region: {flow_region}")
 
                     mask.append(value)
 
@@ -132,9 +134,9 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Gmsh STEP parser for geometry mask metadata")
     parser.add_argument("--step", type=str, required=True, help="Path to STEP file")
-    parser.add_argument("--resolution", type=float, help="Grid resolution in meters")
-    parser.add_argument("--flow_region", type=str, choices=["internal", "external", "mixed"], default="internal", help="Flow context for masking")
-    parser.add_argument("--padding_factor", type=int, default=5, help="Number of voxel layers to pad for external/mixed")
+    parser.add_argument("--resolution", type=float, help="Grid resolution in millimeters (model units)")
+    parser.add_argument("--flow_region", type=str, choices=["internal", "external"], default="internal", help="Flow context for masking")
+    parser.add_argument("--padding_factor", type=int, default=5, help="Number of voxel layers to pad for external")
     parser.add_argument("--output", type=str, help="Path to write geometry mask JSON")
 
     args = parser.parse_args()
