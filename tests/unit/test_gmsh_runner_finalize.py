@@ -2,7 +2,7 @@
 
 import pytest
 import src.gmsh_runner as gmsh_runner
-from .conftest import DummyGmsh  # reuse dummy classes/fixture from conftest
+from tests.unit.conftest import DummyGmsh  # reuse dummy classes/fixture from conftest
 
 def test_finalize_attempted_even_on_error(monkeypatch, tmp_path):
     """

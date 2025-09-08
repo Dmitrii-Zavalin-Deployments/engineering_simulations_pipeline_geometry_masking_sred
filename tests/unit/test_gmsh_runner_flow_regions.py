@@ -2,7 +2,7 @@
 
 import pytest
 import src.gmsh_runner as gmsh_runner
-from .conftest import DummyGmsh  # reuse dummy classes/fixture from conftest
+from tests.unit.conftest import DummyGmsh  # reuse dummy classes/fixture from conftest
 
 def test_internal_flow_classification_mixed_points(monkeypatch, tmp_path):
     """Internal flow: some voxels inside (solid=0), others outside (fluid=1)."""

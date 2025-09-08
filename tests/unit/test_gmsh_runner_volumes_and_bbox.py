@@ -2,7 +2,7 @@
 
 import pytest
 import src.gmsh_runner as gmsh_runner
-from .conftest import DummyGmsh  # reuse dummy classes/fixture from conftest
+from tests.unit.conftest import DummyGmsh  # reuse dummy classes/fixture from conftest
 
 def test_no_volumes_raises_value_error(monkeypatch, tmp_path):
     """If gmsh.model.getEntities(3) returns empty, should raise ValueError."""

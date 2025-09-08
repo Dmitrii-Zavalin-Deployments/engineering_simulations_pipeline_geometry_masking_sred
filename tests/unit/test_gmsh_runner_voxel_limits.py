@@ -2,7 +2,7 @@
 
 import pytest
 import src.gmsh_runner as gmsh_runner
-from .conftest import DummyGmsh  # reuse dummy classes/fixture from conftest
+from tests.unit.conftest import DummyGmsh  # reuse dummy classes/fixture from conftest
 
 def test_voxel_count_within_limit_returns_mask_and_shape(tmp_path):
     """When voxel count <= 10M, should return valid mask and shape."""

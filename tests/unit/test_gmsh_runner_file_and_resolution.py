@@ -2,7 +2,7 @@
 
 import pytest
 import src.gmsh_runner as gmsh_runner
-from .conftest import DummyGmsh  # reuse dummy classes/fixture if placed in conftest
+from tests.unit.conftest import DummyGmsh  # reuse dummy classes/fixture if placed in conftest
 
 def test_file_not_found(tmp_path):
     """Non-existent STEP file should raise FileNotFoundError."""

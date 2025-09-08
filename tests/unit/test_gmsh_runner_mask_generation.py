@@ -2,7 +2,7 @@
 
 import pytest
 import src.gmsh_runner as gmsh_runner
-from .conftest import DummyGmsh  # reuse dummy classes/fixture from conftest
+from tests.unit.conftest import DummyGmsh  # reuse dummy classes/fixture from conftest
 
 def test_single_voxel_grid_when_bbox_smaller_than_resolution(monkeypatch, tmp_path):
     """BBox smaller than resolution should clamp nx, ny, nz to 1."""
