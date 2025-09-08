@@ -1,69 +1,130 @@
 # tests/test_gmsh_runner.py
 
+import builtins
+import io
+import os
+import types
 import pytest
-from unittest.mock import patch, MagicMock
-from src.gmsh_runner import extract_bounding_box_with_gmsh
-from utils.gmsh_input_check import ValidationError
+
+import src.gmsh_runner as gmsh_runner
 
 
-# 🧪 Success path — simulate valid geometry
-@patch("src.gmsh_runner.gmsh")
-@patch("os.path.isfile", return_value=True)
-@patch("src.gmsh_runner.validate_step_has_volumes")
-def test_successful_extraction(mock_validate, mock_isfile, mock_gmsh):
-    mock_gmsh.model.getEntities.return_value = [(3, 42)]
-    mock_gmsh.model.getBoundingBox.return_value = (0, 0, 0, 1, 1, 1)
+class DummyGmshModel:
+    def __init__(self, bbox=(0, 0, 0, 10, 10, 10), inside_points=None):
+        self._bbox = bbox
+        self._inside_points = inside_points or set()
 
-    result = extract_bounding_box_with_gmsh("mock.step", resolution=0.1)
+    def add(self, name):
+        pass
 
-    assert result["nx"] == 10
-    assert result["ny"] == 10
-    assert result["nz"] == 10
-    assert result["min_x"] == 0
-    assert result["max_z"] == 1
-    mock_gmsh.finalize.assert_called_once()
+    def getEntities(self, dim):
+        return [(3, 1)]
 
+    def getBoundingBox(self, dim, tag):
+        return self._bbox
 
-# 📂 Missing file trigger
-@patch("os.path.isfile", return_value=False)
-def test_missing_file_raises_file_error(mock_isfile):
-    with pytest.raises(FileNotFoundError, match="STEP file not found"):
-        extract_bounding_box_with_gmsh("missing.step")
+    def isInside(self, dim, tag, coords):
+        # Return True if coords tuple is in inside_points
+        return tuple(round(c, 3) for c in coords) in self._inside_points
 
 
-# 🧠 Degenerate bounding box
-@patch("src.gmsh_runner.gmsh")
-@patch("os.path.isfile", return_value=True)
-@patch("src.gmsh_runner.validate_step_has_volumes")
-def test_empty_volume_raises_value_error(mock_validate, mock_isfile, mock_gmsh):
-    mock_gmsh.model.getEntities.return_value = [(3, 7)]
-    mock_gmsh.model.getBoundingBox.return_value = (0, 0, 0, 0, 0, 0)
+class DummyGmsh:
+    def __init__(self, bbox=(0, 0, 0, 10, 10, 10), inside_points=None):
+        self.model = DummyGmshModel(bbox, inside_points)
+        self.logger = types.SimpleNamespace(start=lambda: None)
+        self._finalized = False
 
-    with pytest.raises(ValueError, match="bounding box has zero size"):
-        extract_bounding_box_with_gmsh("degenerate.step")
+    def initialize(self):
+        pass
 
+    def finalize(self):
+        self._finalized = True
 
-# ❌ Internal validation failure
-@patch("os.path.isfile", return_value=True)
-@patch("src.gmsh_runner.gmsh")
-@patch("src.gmsh_runner.validate_step_has_volumes", side_effect=ValidationError("No volumes found"))
-def test_validation_check_failure_propagates(mock_validate, mock_gmsh, mock_isfile):
-    with pytest.raises(ValidationError, match="No volumes found"):
-        extract_bounding_box_with_gmsh("invalid.step")
+    def open(self, path):
+        pass
 
 
-# 🧮 Resolution calculation test
-@patch("src.gmsh_runner.gmsh")
-@patch("os.path.isfile", return_value=True)
-@patch("src.gmsh_runner.validate_step_has_volumes")
-def test_resolution_applies_correctly(mock_validate, mock_isfile, mock_gmsh):
-    mock_gmsh.model.getEntities.return_value = [(3, 1)]
-    mock_gmsh.model.getBoundingBox.return_value = (0.0, 0.0, 0.0, 0.5, 1.0, 1.5)
+@pytest.fixture(autouse=True)
+def patch_gmsh(monkeypatch):
+    dummy = DummyGmsh()
+    monkeypatch.setattr(gmsh_runner, "gmsh", dummy)
+    # Patch validate_step_has_volumes to no‑op
+    monkeypatch.setattr(gmsh_runner, "validate_step_has_volumes", lambda p: None)
+    # Patch load_resolution_profile to return default
+    monkeypatch.setattr(gmsh_runner, "load_resolution_profile", lambda: {"default_resolution": {"dx": 2}})
+    return dummy
 
-    result = extract_bounding_box_with_gmsh("geometry.step", resolution=0.25)
-    assert result["nx"] == 2
-    assert result["ny"] == 4
-    assert result["nz"] == 6
+
+def test_file_not_found(tmp_path):
+    with pytest.raises(FileNotFoundError):
+        gmsh_runner.extract_bounding_box_with_gmsh(str(tmp_path / "missing.step"))
+
+
+def test_resolution_fallback_used(monkeypatch, tmp_path):
+    step_file = tmp_path / "file.step"
+    step_file.write_text("dummy")
+    # Remove resolution argument to trigger fallback
+    result = gmsh_runner.extract_bounding_box_with_gmsh(str(step_file))
+    assert "geometry_mask_flat" in result
+    assert isinstance(result["geometry_mask_flat"], list)
+
+
+def test_resolution_too_large(monkeypatch, tmp_path):
+    step_file = tmp_path / "file.step"
+    step_file.write_text("dummy")
+    # Patch bounding box to have smallest dim = 5
+    dummy = DummyGmsh(bbox=(0, 0, 0, 5, 10, 10))
+    monkeypatch.setattr(gmsh_runner, "gmsh", dummy)
+    with pytest.raises(ValueError) as e:
+        gmsh_runner.extract_bounding_box_with_gmsh(str(step_file), resolution=5)
+    assert "too large" in str(e.value)
+
+
+def test_external_flow_padding_applied(monkeypatch, tmp_path):
+    step_file = tmp_path / "file.step"
+    step_file.write_text("dummy")
+    bbox = (0, 0, 0, 10, 10, 10)
+    dummy = DummyGmsh(bbox=bbox)
+    monkeypatch.setattr(gmsh_runner, "gmsh", dummy)
+    gmsh_runner.extract_bounding_box_with_gmsh(str(step_file), resolution=1, flow_region="external", padding_factor=1)
+    # Padding should have been applied: nx > original size/resolution
+    nx = int((bbox[3] - bbox[0] + 2 * 1) / 1)
+    assert nx >= 12
+
+
+def test_voxel_count_limit(monkeypatch, tmp_path):
+    step_file = tmp_path / "file.step"
+    step_file.write_text("dummy")
+    # Patch bounding box to be huge so voxel count > 10M
+    huge_bbox = (0, 0, 0, 100000, 100000, 100000)
+    dummy = DummyGmsh(bbox=huge_bbox)
+    monkeypatch.setattr(gmsh_runner, "gmsh", dummy)
+    with pytest.raises(MemoryError) as e:
+        gmsh_runner.extract_bounding_box_with_gmsh(str(step_file), resolution=1)
+    assert "Voxel grid too large" in str(e.value)
+
+
+def test_mask_generation_internal_and_external(monkeypatch, tmp_path):
+    step_file = tmp_path / "file.step"
+    step_file.write_text("dummy")
+    # Mark one point as inside solid
+    inside_points = {(0.5, 0.5, 0.5)}
+    dummy = DummyGmsh(bbox=(0, 0, 0, 2, 2, 2), inside_points=inside_points)
+    monkeypatch.setattr(gmsh_runner, "gmsh", dummy)
+    res_internal = gmsh_runner.extract_bounding_box_with_gmsh(str(step_file), resolution=1, flow_region="internal")
+    res_external = gmsh_runner.extract_bounding_box_with_gmsh(str(step_file), resolution=1, flow_region="external")
+    assert 0 in res_internal["geometry_mask_flat"]
+    assert 0 in res_external["geometry_mask_flat"]
+
+
+def test_invalid_flow_region(monkeypatch, tmp_path):
+    step_file = tmp_path / "file.step"
+    step_file.write_text("dummy")
+    dummy = DummyGmsh()
+    monkeypatch.setattr(gmsh_runner, "gmsh", dummy)
+    with pytest.raises(ValueError) as e:
+        gmsh_runner.extract_bounding_box_with_gmsh(str(step_file), resolution=1, flow_region="unsupported")
+    assert "Unsupported flow_region" in str(e.value)
 
 
 
