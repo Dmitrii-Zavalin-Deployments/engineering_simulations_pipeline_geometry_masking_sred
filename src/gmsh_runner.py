@@ -58,6 +58,22 @@ def extract_bounding_box_with_gmsh(step_path, resolution=None, flow_region="inte
         # Get bounding box of the geometry (in mm)
         min_x, min_y, min_z, max_x, max_y, max_z = gmsh.model.getBoundingBox(3, entity_tag)
 
+        # Calculate model dimensions
+        dim_x = max_x - min_x
+        dim_y = max_y - min_y
+        dim_z = max_z - min_z
+        min_dim = min(dim_x, dim_y, dim_z)
+
+        # ✅ New check: resolution must be smaller than smallest model dimension
+        if resolution >= min_dim:
+            raise ValueError(
+                f"Resolution {resolution:.2f} mm is too large for the model.\n"
+                f"The smallest model dimension is {min_dim:.2f} mm, so resolution must be smaller.\n"
+                f"Please update 'default_resolution' in 'flow_data.json' "
+                f"(in the engineering_simulation_pipeline folder in Dropbox) "
+                f"to be less than {min_dim:.2f} mm."
+            )
+
         # Expand bounding box for external
         if flow_region == "external":
             pad = padding_factor * resolution
@@ -89,7 +105,7 @@ def extract_bounding_box_with_gmsh(step_path, resolution=None, flow_region="inte
                 f"'default_resolution' value in 'flow_data.json' "
                 f"(located in the engineering_simulation_pipeline folder in Dropbox) "
                 f"to at least {safe_resolution_mm:.2f} mm "
-                f"(which is {safe_resolution_mm/1000:.5f} m) or larger.\n"
+                f"(which is {safe_resolution_mm:.5f} mm) or larger.\n"
                 f"This will reduce the voxel count and keep the job within CI memory limits."
             )
 
