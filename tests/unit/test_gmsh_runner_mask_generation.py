@@ -54,12 +54,16 @@ def test_mixed_inside_outside_produces_mixed_mask(monkeypatch, tmp_path):
     """If some voxels are inside and some outside, mask should contain both 0 and 1."""
     step_file = tmp_path / "file.step"
     step_file.write_text("dummy")
-    # 2x2x1 grid; mark one voxel as inside; min_dim = 1
-    inside_points = {(0.5, 0.5, 0.5)}
+    res_val = 0.9
+    # Compute a voxel centre that will exist for this bbox/resolution
+    min_x = min_y = min_z = 0
+    centre = (min_x + 0.5 * res_val,
+              min_y + 0.5 * res_val,
+              min_z + 0.5 * res_val)
+    inside_points = {centre}
     dummy = DummyGmsh(bbox=(0, 0, 0, 2, 2, 1), inside_points=inside_points)
     monkeypatch.setattr(gmsh_runner, "gmsh", dummy)
-    # Use resolution < min_dim to avoid triggering guard
-    res = gmsh_runner.extract_bounding_box_with_gmsh(str(step_file), resolution=0.9)
+    res = gmsh_runner.extract_bounding_box_with_gmsh(str(step_file), resolution=res_val)
     assert 0 in res["geometry_mask_flat"] and 1 in res["geometry_mask_flat"]
 
 
