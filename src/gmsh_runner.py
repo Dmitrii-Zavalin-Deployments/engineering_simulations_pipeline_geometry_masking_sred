@@ -94,10 +94,8 @@ def extract_bounding_box_with_gmsh(step_path, resolution=None, flow_region="inte
         print(f"Voxel grid shape: {shape} → total voxels: {total_voxels}")
 
         max_voxels = 10_000_000
+        safe_resolution_mm = (max_x - min_x) / (max_voxels ** (1/3))
         if total_voxels > max_voxels:
-            # Estimate a safe resolution in millimeters based on the X dimension
-            safe_resolution_mm = (max_x - min_x) / (max_voxels ** (1/3))
-
             raise MemoryError(
                 f"Voxel grid too large: {total_voxels} exceeds safe limit of {max_voxels}.\n"
                 f"Model units are in millimeters. The current resolution is likely too fine.\n"
@@ -108,6 +106,16 @@ def extract_bounding_box_with_gmsh(step_path, resolution=None, flow_region="inte
                 f"(which is {safe_resolution_mm:.5f} mm) or larger.\n"
                 f"This will reduce the voxel count and keep the job within CI memory limits."
             )
+
+        # ✅ Write resolution advice to JSON
+        advice_path = os.path.join(os.path.dirname(step_path), "geometry_resolution_advice.json")
+        advice_payload = {
+            "minimum_model_dimension_mm": round(min_dim, 5),
+            "recommended_minimum_resolution_mm": round(safe_resolution_mm, 5)
+        }
+        with open(advice_path, "w") as f:
+            json.dump(advice_payload, f, indent=2)
+        print(f"📄 Resolution advice written to: {advice_path}")
 
         # Build mask using geometry-aware classification
         mask = []
