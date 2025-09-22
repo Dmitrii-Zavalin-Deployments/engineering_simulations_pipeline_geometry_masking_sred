@@ -108,14 +108,14 @@ def extract_bounding_box_with_gmsh(step_path, resolution=None, flow_region="inte
             )
 
         # ✅ Write resolution advice to JSON
-        advice_path = os.path.join(os.path.dirname(step_path), "geometry_resolution_advice.json")
-        advice_payload = {
-            "minimum_model_dimension_mm": round(min_dim, 5),
-            "recommended_minimum_resolution_mm": round(safe_resolution_mm, 5)
-        }
-        with open(advice_path, "w") as f:
-            json.dump(advice_payload, f, indent=2)
-        print(f"📄 Resolution advice written to: {advice_path}")
+        # advice_path = os.path.join(os.path.dirname(step_path), "geometry_resolution_advice.json")
+        # advice_payload = {
+        #    "minimum_model_dimension_mm": round(min_dim, 5),
+        #    "recommended_minimum_resolution_mm": round(safe_resolution_mm, 5)
+        #}
+        # with open(advice_path, "w") as f:
+        #    json.dump(advice_payload, f, indent=2)
+        # print(f"📄 Resolution advice written to: {advice_path}")
 
         # Build mask using geometry-aware classification
         mask = []
