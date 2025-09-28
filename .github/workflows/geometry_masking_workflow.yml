@@ -31,7 +31,7 @@ jobs:
           
       - name: 💀 Run vulture to find dead code
         run: |
-          vulture --exclude .github,data .
+          vulture --exclude .github,tests,data .
           
       - name: 🚀 Commit autoflake changes
         env:
