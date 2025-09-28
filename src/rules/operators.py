@@ -61,27 +61,5 @@ def normalize_operator(op: str) -> str:
     }
     return alt_map.get(op.strip(), op.strip())
 
-def resolve_operator(op: str):
-    """
-    Retrieve the comparison function for a given operator.
-
-    Parameters:
-        op (str): Raw or normalized operator
-
-    Returns:
-        function: Callable comparison function
-
-    Raises:
-        OperatorError: If operator is malformed or unsupported
-    """
-    original = op.strip()
-    normalized = normalize_operator(original)
-
-    if normalized not in SUPPORTED_OPERATORS:
-        raise OperatorError(
-            f"Unsupported comparison operator: '{original}' → normalized as '{normalized}'"
-        )
-    return SUPPORTED_OPERATORS[normalized]
-
 
 
