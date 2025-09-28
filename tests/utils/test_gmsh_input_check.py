@@ -10,7 +10,7 @@ from src.utils.gmsh_input_check import (
 
 # ---------- Core File Path Scenarios ----------
 
-def test_valid_file_with_volumes(tmp_path):
+def test_valid_file_with_volumes(gmsh_session, tmp_path):
     """✅ Valid .step file path and Gmsh returns volume entities."""
     step_path = tmp_path / "geometry.step"
     step_path.write_text("dummy content")
@@ -22,7 +22,7 @@ def test_valid_file_with_volumes(tmp_path):
         validate_step_has_volumes(str(step_path))  # Should pass without exception
 
 
-def test_valid_file_without_volumes(tmp_path):
+def test_valid_file_without_volumes(gmsh_session, tmp_path):
     """🚫 Valid .step file path but no volume entities present."""
     step_path = tmp_path / "geometry.step"
     step_path.write_text("dummy content")
@@ -35,7 +35,7 @@ def test_valid_file_without_volumes(tmp_path):
             validate_step_has_volumes(str(step_path))
 
 
-def test_nonexistent_file_path():
+def test_nonexistent_file_path(gmsh_session, gmsh_session):
     """🚫 Invalid file path triggers FileNotFoundError."""
     with patch("os.path.isfile", return_value=False):
         with pytest.raises(FileNotFoundError):
@@ -44,7 +44,7 @@ def test_nonexistent_file_path():
 
 # ---------- Dictionary Payload Scenarios ----------
 
-def test_dict_payload_valid_solids():
+def test_dict_payload_valid_solids(gmsh_session, gmsh_session):
     """✅ Valid STEP dict payload with 'solids' list passes."""
     payload = {"solids": ["mock_solid_entity"]}
     with patch("os.path.isfile", return_value=True), \
@@ -54,21 +54,21 @@ def test_dict_payload_valid_solids():
         validate_step_has_volumes(payload)  # Should pass
 
 
-def test_dict_payload_missing_solids_key():
+def test_dict_payload_missing_solids_key(gmsh_session, gmsh_session):
     """🚫 Dict payload missing 'solids' key triggers KeyError."""
     payload = {"foo": ["something"]}
     with pytest.raises(KeyError):
         validate_step_has_volumes(payload)
 
 
-def test_dict_payload_invalid_solids_type():
+def test_dict_payload_invalid_solids_type(gmsh_session, gmsh_session):
     """🚫 Dict payload with non-list 'solids' triggers KeyError."""
     payload = {"solids": "not_a_list"}
     with pytest.raises(KeyError):
         validate_step_has_volumes(payload)
 
 
-def test_dict_payload_empty_solids_list():
+def test_dict_payload_empty_solids_list(gmsh_session, gmsh_session):
     """🚫 Dict payload with empty 'solids' should trigger ValidationError."""
     payload = {"solids": []}
     with patch("os.path.isfile", return_value=True), \
@@ -79,7 +79,7 @@ def test_dict_payload_empty_solids_list():
             validate_step_has_volumes(payload)
 
 
-def test_dict_payload_valid_path_but_no_volumes():
+def test_dict_payload_valid_path_but_no_volumes(gmsh_session, gmsh_session):
     """🚫 Dict payload with valid path override but Gmsh returns no volumes."""
     payload = {"solids": ["dummy"]}
     with patch("os.path.isfile", return_value=True), \

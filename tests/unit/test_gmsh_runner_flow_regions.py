@@ -4,7 +4,7 @@ import pytest
 import src.gmsh_runner as gmsh_runner
 from tests.unit.conftest import DummyGmsh  # reuse dummy classes/fixture from conftest
 
-def test_internal_flow_classification_mixed_points(_patch_gmsh, monkeypatch, tmp_path):
+def test_internal_flow_classification_mixed_points(gmsh_session, _patch_gmsh, monkeypatch, tmp_path):
     """Internal flow: some voxels inside (solid=0), others outside (fluid=1)."""
     step_file = tmp_path / "file.step"
     step_file.write_text("dummy")
@@ -17,7 +17,7 @@ def test_internal_flow_classification_mixed_points(_patch_gmsh, monkeypatch, tmp
     )
     assert 0 in res["geometry_mask_flat"] and 1 in res["geometry_mask_flat"]
 
-def test_external_flow_padding_and_classification(_patch_gmsh, monkeypatch, tmp_path):
+def test_external_flow_padding_and_classification(gmsh_session, _patch_gmsh, monkeypatch, tmp_path):
     """External flow: padding applied to bbox and classification still 'fluid if not inside'."""
     step_file = tmp_path / "file.step"
     step_file.write_text("dummy")
@@ -32,7 +32,7 @@ def test_external_flow_padding_and_classification(_patch_gmsh, monkeypatch, tmp_
     # No inside points → all voxels fluid (1)
     assert set(res["geometry_mask_flat"]) == {1}
 
-def test_unsupported_flow_region(_patch_gmsh, tmp_path):
+def test_unsupported_flow_region(gmsh_session, _patch_gmsh, tmp_path):
     """Unsupported flow_region should raise ValueError."""
     step_file = tmp_path / "file.step"
     step_file.write_text("dummy")

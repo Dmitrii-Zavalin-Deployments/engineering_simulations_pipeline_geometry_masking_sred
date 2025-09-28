@@ -3,7 +3,7 @@
 import src.gmsh_runner as gmsh_runner
 from tests.unit.conftest import DummyGmsh  # reuse dummy classes/fixture from conftest
 
-def test_single_voxel_grid_when_bbox_smaller_than_resolution(_patch_gmsh, monkeypatch, tmp_path):
+def test_single_voxel_grid_when_bbox_smaller_than_resolution(gmsh_session, _patch_gmsh, monkeypatch, tmp_path):
     """BBox smaller than resolution should clamp nx, ny, nz to 1."""
     step_file = tmp_path / "file.step"
     step_file.write_text("dummy")
@@ -14,7 +14,7 @@ def test_single_voxel_grid_when_bbox_smaller_than_resolution(_patch_gmsh, monkey
     assert res["geometry_mask_shape"] == [1, 1, 1]
     assert len(res["geometry_mask_flat"]) == 1
 
-def test_multi_voxel_grid_shape_and_mask_length(_patch_gmsh, monkeypatch, tmp_path):
+def test_multi_voxel_grid_shape_and_mask_length(gmsh_session, _patch_gmsh, monkeypatch, tmp_path):
     """BBox larger than resolution should produce correct shape and mask length."""
     step_file = tmp_path / "file.step"
     step_file.write_text("dummy")
@@ -25,7 +25,7 @@ def test_multi_voxel_grid_shape_and_mask_length(_patch_gmsh, monkeypatch, tmp_pa
     assert res["geometry_mask_shape"] == [3, 2, 1]
     assert len(res["geometry_mask_flat"]) == 6
 
-def test_all_inside_results_in_all_fluid(_patch_gmsh, monkeypatch, tmp_path):
+def test_all_inside_results_in_all_fluid(gmsh_session, _patch_gmsh, monkeypatch, tmp_path):
     """If isInside() returns True for all voxels, mask should be all fluid (1)."""
     step_file = tmp_path / "file.step"
     step_file.write_text("dummy")
@@ -35,7 +35,7 @@ def test_all_inside_results_in_all_fluid(_patch_gmsh, monkeypatch, tmp_path):
     res = gmsh_runner.extract_bounding_box_with_gmsh(str(step_file), resolution=1, flow_region="internal")
     assert set(res["geometry_mask_flat"]) == {1}
 
-def test_all_outside_results_in_all_solid(_patch_gmsh, monkeypatch, tmp_path):
+def test_all_outside_results_in_all_solid(gmsh_session, _patch_gmsh, monkeypatch, tmp_path):
     """If isInside() returns False for all voxels, mask should be all solid (0)."""
     step_file = tmp_path / "file.step"
     step_file.write_text("dummy")
@@ -45,7 +45,7 @@ def test_all_outside_results_in_all_solid(_patch_gmsh, monkeypatch, tmp_path):
     res = gmsh_runner.extract_bounding_box_with_gmsh(str(step_file), resolution=1, flow_region="internal")
     assert set(res["geometry_mask_flat"]) == {0}
 
-def test_mixed_inside_outside_produces_mixed_mask(_patch_gmsh, monkeypatch, tmp_path):
+def test_mixed_inside_outside_produces_mixed_mask(gmsh_session, _patch_gmsh, monkeypatch, tmp_path):
     """If some voxels are inside and some outside, mask should contain both 0 and 1."""
     step_file = tmp_path / "file.step"
     step_file.write_text("dummy")

@@ -3,6 +3,7 @@
 import sys
 import pathlib
 import pytest
+import gmsh
 from unittest.mock import patch
 
 # Adds src/ directory to sys.path for all tests
@@ -16,6 +17,15 @@ def mock_validate_step_file():
     with patch("os.path.isfile", return_value=True):
         with patch("src.utils.input_validation.validate_step_file", return_value=True) as mock_func:
             yield mock_func
+
+
+@pytest.fixture(scope="function")
+def gmsh_session():
+    """Initializes and finalizes a gmsh session for a test function."""
+    if not gmsh.isInitialized():
+        gmsh.initialize()
+    yield
+    gmsh.finalize()
 
 
 

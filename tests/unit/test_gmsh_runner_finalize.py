@@ -4,7 +4,7 @@ import pytest
 import src.gmsh_runner as gmsh_runner
 from tests.unit.conftest import DummyGmsh  # reuse dummy classes/fixture from conftest
 
-def test_finalize_attempted_even_on_error(_patch_gmsh, monkeypatch, tmp_path):
+def test_finalize_attempted_even_on_error(gmsh_session, _patch_gmsh, monkeypatch, tmp_path):
     """
     gmsh.finalize() should be attempted even if an exception is raised mid-function.
     Here we trigger a ValueError by setting resolution equal to the smallest model dimension.
@@ -19,7 +19,7 @@ def test_finalize_attempted_even_on_error(_patch_gmsh, monkeypatch, tmp_path):
     # Ensure finalize was called
     assert dummy._finalized is True
 
-def test_finalize_errors_are_swallowed(_patch_gmsh, monkeypatch, tmp_path):
+def test_finalize_errors_are_swallowed(gmsh_session, _patch_gmsh, monkeypatch, tmp_path):
     """
     If gmsh.finalize() itself raises an error, it should be swallowed and not propagate.
     """

@@ -53,12 +53,12 @@ def gmsh_mock_factory(monkeypatch):
     return _create_mock
 
 
-def test_file_not_found(tmp_path):
+def test_file_not_found(gmsh_session, tmp_path):
     with pytest.raises(FileNotFoundError):
         gmsh_runner.extract_bounding_box_with_gmsh(str(tmp_path / "missing.step"))
 
 
-def test_resolution_fallback_used(gmsh_mock_factory, tmp_path):
+def test_resolution_fallback_used(gmsh_session, gmsh_mock_factory, tmp_path):
     step_file = tmp_path / "file.step"
     step_file.write_text("dummy")
     gmsh_mock_factory()
@@ -68,7 +68,7 @@ def test_resolution_fallback_used(gmsh_mock_factory, tmp_path):
     assert isinstance(result["geometry_mask_flat"], list)
 
 
-def test_resolution_too_large(gmsh_mock_factory, tmp_path):
+def test_resolution_too_large(gmsh_session, gmsh_mock_factory, tmp_path):
     step_file = tmp_path / "file.step"
     step_file.write_text("dummy")
     # Patch bounding box to have smallest dim = 5
@@ -78,7 +78,7 @@ def test_resolution_too_large(gmsh_mock_factory, tmp_path):
     assert "too large" in str(e.value)
 
 
-def test_external_flow_padding_applied(gmsh_mock_factory, tmp_path):
+def test_external_flow_padding_applied(gmsh_session, gmsh_mock_factory, tmp_path):
     step_file = tmp_path / "file.step"
     step_file.write_text("dummy")
     bbox = (0, 0, 0, 10, 10, 10)
@@ -89,7 +89,7 @@ def test_external_flow_padding_applied(gmsh_mock_factory, tmp_path):
     assert nx >= 12
 
 
-def test_voxel_count_limit(gmsh_mock_factory, tmp_path):
+def test_voxel_count_limit(gmsh_session, gmsh_mock_factory, tmp_path):
     step_file = tmp_path / "file.step"
     step_file.write_text("dummy")
     # Patch bounding box to be huge so voxel count > 10M
@@ -100,7 +100,7 @@ def test_voxel_count_limit(gmsh_mock_factory, tmp_path):
     assert "Voxel grid too large" in str(e.value)
 
 
-def test_mask_generation_internal_and_external(gmsh_mock_factory, tmp_path):
+def test_mask_generation_internal_and_external(gmsh_session, gmsh_mock_factory, tmp_path):
     step_file = tmp_path / "file.step"
     step_file.write_text("dummy")
     # Mark one point as inside solid
@@ -112,7 +112,7 @@ def test_mask_generation_internal_and_external(gmsh_mock_factory, tmp_path):
     assert 0 in res_external["geometry_mask_flat"]
 
 
-def test_invalid_flow_region(gmsh_mock_factory, tmp_path):
+def test_invalid_flow_region(gmsh_session, gmsh_mock_factory, tmp_path):
     step_file = tmp_path / "file.step"
     step_file.write_text("dummy")
     gmsh_mock_factory()

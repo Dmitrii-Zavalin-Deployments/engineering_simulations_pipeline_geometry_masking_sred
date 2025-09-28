@@ -52,12 +52,12 @@ def gmsh_mock_factory(monkeypatch):
     return _create_mock
 
 
-def test_file_not_found(tmp_path):
+def test_file_not_found(gmsh_session, tmp_path):
     """Non-existent STEP file should raise FileNotFoundError."""
     with pytest.raises(FileNotFoundError):
         gmsh_runner.extract_bounding_box_with_gmsh(str(tmp_path / "missing.step"))
 
-def test_resolution_explicit_used(gmsh_mock_factory, tmp_path):
+def test_resolution_explicit_used(gmsh_session, gmsh_mock_factory, tmp_path):
     """Explicit resolution should be used to compute shape."""
     step_file = tmp_path / "file.step"
     step_file.write_text("dummy")
@@ -67,7 +67,7 @@ def test_resolution_explicit_used(gmsh_mock_factory, tmp_path):
     assert result["geometry_mask_shape"] == [2, 2, 2]
     assert len(result["geometry_mask_flat"]) == 8
 
-def test_resolution_from_profile(gmsh_mock_factory, monkeypatch, tmp_path):
+def test_resolution_from_profile(gmsh_session, gmsh_mock_factory, monkeypatch, tmp_path):
     """Resolution should be loaded from profile when not provided."""
     step_file = tmp_path / "file.step"
     step_file.write_text("dummy")
