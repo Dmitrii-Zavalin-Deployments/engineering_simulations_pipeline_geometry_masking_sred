@@ -137,30 +137,5 @@ def _evaluate_expression(
     except Exception as e:
         raise RuleEvaluationError(f"Comparison failed: {e}")
 
-def evaluate_rule(rule: dict, payload: dict, *, strict_type_check: bool = False, relaxed_type_check: bool = False) -> bool:
-    expression = rule.get("if")
-    if not expression or not isinstance(expression, str):
-        debug_log("Empty or malformed rule expression; returning True")
-        return True
-
-    if not (strict_type_check or relaxed_type_check):
-        try:
-            type_mode = get_type_check_mode(rule.get("type_check_mode"))
-            debug_log(f"Resolved type check mode: {type_mode}")
-        except Exception as config_error:
-            logger.warning(f"Invalid type check mode override: {config_error}")
-            type_mode = "strict"
-            debug_log("Fallback type check mode: strict")
-
-        strict_type_check = type_mode == "strict"
-        relaxed_type_check = type_mode == "relaxed"
-
-    return _evaluate_expression(
-        expression,
-        payload,
-        strict_type_check=strict_type_check,
-        relaxed_type_check=relaxed_type_check
-    )
-
 
 

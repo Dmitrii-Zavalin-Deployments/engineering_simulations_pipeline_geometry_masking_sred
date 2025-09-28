@@ -24,47 +24,4 @@ def log_checkpoint(msg: str, *, emoji="🪵", newline=True) -> None:
     print(f"{emoji} [{ts}] {msg}", end="\n" if newline else "")
 
 
-def log_error(msg: str, *, fatal=False) -> None:
-    """
-    Print a standardized error message.
-
-    Args:
-        msg (str): Error description.
-        fatal (bool, optional): Whether to terminate execution. Default: False.
-    """
-    log_checkpoint(f"❌ ERROR: {msg}", emoji="💥")
-    if fatal:
-        sys.exit(1)
-
-
-def log_success(msg: str) -> None:
-    """
-    Print a standardized success message.
-
-    Args:
-        msg (str): Success description.
-    """
-    log_checkpoint(f"✅ {msg}", emoji="🌟")
-
-
-def log_info(msg: str) -> None:
-    """
-    Print a neutral informational message.
-
-    Args:
-        msg (str): Info message.
-    """
-    log_checkpoint(msg, emoji="🧾")
-
-
-def log_warning(msg: str) -> None:
-    """
-    Print a standardized warning message.
-
-    Args:
-        msg (str): Warning message.
-    """
-    log_checkpoint(f"⚠️ WARNING: {msg}", emoji="⚠️")
-
-
 

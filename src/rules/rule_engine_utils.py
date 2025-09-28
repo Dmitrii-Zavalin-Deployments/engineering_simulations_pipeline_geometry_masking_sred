@@ -1,7 +1,7 @@
 # 📄 src/rules/rule_engine_utils.py
 
 import logging
-import unicodedata  # ✅ Added for Unicode digit detection
+import unicodedata
 from src.rules.config import debug_log
 
 logger = logging.getLogger(__name__)
@@ -34,35 +34,6 @@ def get_nested_value(payload: dict, path: str):
 def is_fullwidth_digit(s) -> bool:
     """Detect if a string contains full-width Unicode digits."""
     return any(unicodedata.east_asian_width(c) == 'F' for c in str(s))
-
-def coerce_relaxed_type_if_needed(left, right, relaxed_mode: bool):
-    """
-    Applies stricter relaxed-mode fallback logic to prevent unintended coercion.
-    Only allows string-to-numeric coercion if input is numerically valid.
-    """
-    if not relaxed_mode:
-        return left, right
-
-    # 🚫 Defensive rejection for Unicode-style digits
-    if is_fullwidth_digit(left) or is_fullwidth_digit(right):
-        raise RuleEvaluationError(
-            f"Incompatible coercion: {left} or {right} contains full-width digits"
-        )
-
-    # Only coerce if types are mismatched: string vs number
-    if isinstance(left, str) and isinstance(right, (int, float)):
-        try:
-            left = float(left)
-        except ValueError:
-            raise RuleEvaluationError(f"Incompatible coercion: '{left}' to {type(right)}")
-
-    elif isinstance(right, str) and isinstance(left, (int, float)):
-        try:
-            right = float(right)
-        except ValueError:
-            raise RuleEvaluationError(f"Incompatible coercion: '{right}' to {type(left)}")
-
-    return left, right
 
 
 
