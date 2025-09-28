@@ -44,17 +44,6 @@ class DummyGmsh:
         pass
 
 
-@pytest.fixture(autouse=True)
-def patch_gmsh(monkeypatch):
-    dummy = DummyGmsh()
-    monkeypatch.setattr(gmsh_runner, "gmsh", dummy)
-    # Patch validate_step_has_volumes to no‑op
-    monkeypatch.setattr(gmsh_runner, "validate_step_has_volumes", lambda p: None)
-    # Patch load_resolution_profile to return default
-    monkeypatch.setattr(gmsh_runner, "load_resolution_profile", lambda: {"default_resolution": {"dx": 2}})
-    return dummy
-
-
 def test_file_not_found(tmp_path):
     with pytest.raises(FileNotFoundError):
         gmsh_runner.extract_bounding_box_with_gmsh(str(tmp_path / "missing.step"))

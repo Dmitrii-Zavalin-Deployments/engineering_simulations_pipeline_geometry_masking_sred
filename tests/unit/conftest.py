@@ -25,13 +25,5 @@ class DummyGmsh:
     def finalize(self): self._finalized = True
     def open(self, path): pass
 
-@pytest.fixture(autouse=True)
-def patch_gmsh(monkeypatch):
-    dummy = DummyGmsh()
-    monkeypatch.setattr(gmsh_runner, "gmsh", dummy)
-    monkeypatch.setattr(gmsh_runner, "validate_step_has_volumes", lambda p: None)
-    monkeypatch.setattr(gmsh_runner, "load_resolution_profile", lambda: {"default_resolution": {"dx": 2}})
-    return dummy
-
 
 

@@ -18,22 +18,9 @@ def step_with_volume():
 def step_empty():
     return { "solids": [] }
 
-# 🔧 Reusable fixture — patches Gmsh lifecycle to avoid init errors
-@pytest.fixture
-def mock_gmsh_full_lifecycle():
-    try:
-        with patch("gmsh.initialize", return_value=None), \
-             patch("gmsh.model.add", return_value=None), \
-             patch("gmsh.logger.getLastError", return_value=""), \
-             patch("gmsh.model.getEntities", return_value=[("Volume", 1)]), \
-             patch("gmsh.open", return_value=None):
-            yield True
-    except Exception as e:
-        pytest.fail(f"Failed to mock full Gmsh lifecycle: {e}")
-
 @patch("os.path.isfile", return_value=True)
 @patch("src.utils.input_validation.validate_step_file", return_value=True)
-def test_step_with_volume_passes(mock_validate_file, mock_isfile, mock_gmsh_full_lifecycle):
+def test_step_with_volume_passes(_, __):
     try:
         validate_step_has_volumes(step_with_volume())
     except Exception as e:
@@ -41,7 +28,7 @@ def test_step_with_volume_passes(mock_validate_file, mock_isfile, mock_gmsh_full
 
 @patch("os.path.isfile", return_value=True)
 @patch("src.utils.input_validation.validate_step_file", return_value=True)
-def test_step_missing_solids_key_raises(mock_validate_file, mock_isfile, mock_gmsh_full_lifecycle):
+def test_step_missing_solids_key_raises(_, __):
     invalid = {}
     with pytest.raises(KeyError):
         validate_step_has_volumes(invalid)
@@ -49,20 +36,20 @@ def test_step_missing_solids_key_raises(mock_validate_file, mock_isfile, mock_gm
 @patch("os.path.isfile", return_value=True)
 @patch("src.utils.input_validation.validate_step_file", return_value=True)
 @patch("gmsh.model.getEntities", side_effect=Exception("Simulated Gmsh crash"))
-def test_step_with_no_volumes_raises(mock_get_entities, mock_validate_file, mock_isfile):
+def test_step_with_no_volumes_raises(_, __, ___):
     with pytest.raises(Exception):
         validate_step_has_volumes(step_empty())
 
 @patch("os.path.isfile", return_value=True)
 @patch("src.utils.input_validation.validate_step_file", return_value=True)
 @pytest.mark.parametrize("bad_input", [None, "step", 42, ["solids"], {"solids": None}])
-def test_invalid_step_types_raise_typeerror_or_file_not_found(mock_validate_file, mock_isfile, bad_input):
+def test_invalid_step_types_raise_typeerror_or_file_not_found(_, __, bad_input):
     with pytest.raises((TypeError, FileNotFoundError)):
         validate_step_has_volumes(bad_input)
 
 @patch("os.path.isfile", return_value=True)
 @patch("src.utils.input_validation.validate_step_file", return_value=True)
-def test_volume_validator_runtime_safe(mock_validate_file, mock_isfile, mock_gmsh_full_lifecycle):
+def test_volume_validator_runtime_safe(_, __):
     import time
     try:
         start = time.time()

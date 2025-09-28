@@ -32,7 +32,7 @@ def test_all_inside_results_in_all_fluid(monkeypatch, tmp_path):
     step_file.write_text("dummy")
     dummy = DummyGmsh(bbox=(0, 0, 0, 2, 2, 2))
     monkeypatch.setattr(gmsh_runner, "gmsh", dummy)
-    monkeypatch.setattr(gmsh_runner.gmsh.model, "isInside", lambda *args, **kwargs: True)
+    monkeypatch.setattr(gmsh_runner.gmsh.model, "isInside", lambda *args: True)
     res = gmsh_runner.extract_bounding_box_with_gmsh(str(step_file), resolution=1, flow_region="internal")
     assert set(res["geometry_mask_flat"]) == {1}
 
@@ -42,7 +42,7 @@ def test_all_outside_results_in_all_solid(monkeypatch, tmp_path):
     step_file.write_text("dummy")
     dummy = DummyGmsh(bbox=(0, 0, 0, 2, 2, 2))
     monkeypatch.setattr(gmsh_runner, "gmsh", dummy)
-    monkeypatch.setattr(gmsh_runner.gmsh.model, "isInside", lambda *args, **kwargs: False)
+    monkeypatch.setattr(gmsh_runner.gmsh.model, "isInside", lambda *args: False)
     res = gmsh_runner.extract_bounding_box_with_gmsh(str(step_file), resolution=1, flow_region="internal")
     assert set(res["geometry_mask_flat"]) == {0}
 
