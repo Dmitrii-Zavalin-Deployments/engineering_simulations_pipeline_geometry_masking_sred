@@ -1,7 +1,6 @@
 # 📄 src/rules/rule_engine_utils.py
 
 import logging
-from src.rules.config import debug_log
 
 logger = logging.getLogger(__name__)
 

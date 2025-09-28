@@ -2,7 +2,6 @@
 
 import types
 import pytest
-from unittest.mock import MagicMock
 import src.gmsh_runner as gmsh_runner
 
 

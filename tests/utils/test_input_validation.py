@@ -6,7 +6,6 @@ import pathlib
 from unittest.mock import patch
 import src.utils.input_validation as iv
 from src.utils.gmsh_input_check import validate_step_has_volumes
-from tests.unit.conftest import patch_gmsh
 
 # ------------------------------------------------------------------------------------
 # 🧪 Volume Validation Tests — validate_step_has_volumes
