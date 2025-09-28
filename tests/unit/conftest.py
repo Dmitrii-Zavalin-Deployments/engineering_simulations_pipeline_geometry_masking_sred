@@ -26,7 +26,7 @@ class DummyGmsh:
     def open(self, path): pass
 
 @pytest.fixture
-def patch_gmsh(monkeypatch):
+def _patch_gmsh(monkeypatch):
     """
     Fixture to monkeypatch the gmsh module with a dummy class,
     simulating a successful import and initialization.
