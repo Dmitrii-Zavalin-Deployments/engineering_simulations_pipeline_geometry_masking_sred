@@ -2,9 +2,6 @@
 
 import re
 
-class OperatorError(Exception):
-    """Raised when an unsupported or malformed operator is invoked."""
-
 # 🔗 Centralized operator function definitions
 def op_eq(a, b): return a == b
 def op_ne(a, b): return a != b
@@ -20,46 +17,6 @@ def op_matches(a, b):
     if not isinstance(b, str):
         raise TypeError("Regex pattern must be a string")
     return re.fullmatch(b, str(a)) is not None
-
-# 📦 Central registry of supported comparison operators
-SUPPORTED_OPERATORS = {
-    "==": op_eq,
-    "!=": op_ne,
-    "<": op_lt,
-    "<=": op_le,
-    ">": op_gt,
-    ">=": op_ge,
-    "in": op_in,
-    "not in": op_not_in,
-    "matches": op_matches,
-}
-
-def normalize_operator(op: str) -> str:
-    """
-    Normalize malformed or legacy-style operators to supported ones.
-
-    Examples:
-        '===' → '=='
-        '!==', '>>', '%%' → normalized alternatives
-
-    Parameters:
-        op (str): Operator string possibly needing normalization
-
-    Returns:
-        str: Normalized operator string
-    """
-    alt_map = {
-        "===": "==",
-        "!==": "!=",
-        ">>": ">",
-        "<<": "<",
-        ">==": ">=",
-        "<==": "<=",
-        "++": "+",
-        "--": "-",
-        "%%": "%",
-    }
-    return alt_map.get(op.strip(), op.strip())
 
 
 
