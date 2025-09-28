@@ -12,20 +12,4 @@ DEFAULT_TYPE_CHECK_MODE = "strict"
 SUPPORTED_TYPE_MODES = {"strict", "relaxed"}
 
 
-def get_type_check_mode(profile_override: str | None = None) -> str:
-    """
-    Returns the configured type check mode, allowing optional profile override.
-
-    Parameters:
-        profile_override (str): Optional string to override default config
-
-    Returns:
-        str: "strict" or "relaxed"
-    """
-    mode = profile_override or DEFAULT_TYPE_CHECK_MODE
-    if mode not in SUPPORTED_TYPE_MODES:
-        raise ValueError(f"Invalid type check mode: {mode}")
-    return mode
-
-
 

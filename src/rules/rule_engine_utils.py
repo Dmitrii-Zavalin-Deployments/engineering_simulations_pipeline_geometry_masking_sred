@@ -1,7 +1,6 @@
 # 📄 src/rules/rule_engine_utils.py
 
 import logging
-import unicodedata
 from src.rules.config import debug_log
 
 logger = logging.getLogger(__name__)
@@ -30,10 +29,6 @@ def get_nested_value(payload: dict, path: str):
             )
         debug_log(f"Resolved key '{k}' → {value}")
     return value
-
-def is_fullwidth_digit(s) -> bool:
-    """Detect if a string contains full-width Unicode digits."""
-    return any(unicodedata.east_asian_width(c) == 'F' for c in str(s))
 
 
 
