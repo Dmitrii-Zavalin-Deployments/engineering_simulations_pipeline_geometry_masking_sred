@@ -20,7 +20,7 @@ def step_empty():
 
 @patch("os.path.isfile", return_value=True)
 @patch("src.utils.input_validation.validate_step_file", return_value=True)
-def test_step_with_volume_passes(patch_gmsh, _, __):
+def test_step_with_volume_passes(_patch_gmsh, _, __):
     try:
         validate_step_has_volumes(step_with_volume())
     except Exception as e:
@@ -49,7 +49,7 @@ def test_invalid_step_types_raise_typeerror_or_file_not_found(_, __, bad_input):
 
 @patch("os.path.isfile", return_value=True)
 @patch("src.utils.input_validation.validate_step_file", return_value=True)
-def test_volume_validator_runtime_safe(patch_gmsh, _, __):
+def test_volume_validator_runtime_safe(_patch_gmsh, _, __):
     import time
     try:
         start = time.time()
