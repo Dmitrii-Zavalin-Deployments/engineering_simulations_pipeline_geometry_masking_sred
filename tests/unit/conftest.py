@@ -1,6 +1,8 @@
 # tests/unit/conftest.py
 
 import types
+import pytest
+import src.gmsh_runner as gmsh_runner
 
 class DummyGmshModel:
     def __init__(self, bbox=(0,0,0,10,10,10), inside_points=None, entities_ret=None):
@@ -22,6 +24,14 @@ class DummyGmsh:
     def initialize(self): pass
     def finalize(self): self._finalized = True
     def open(self, path): pass
+
+@pytest.fixture
+def patch_gmsh(monkeypatch):
+    """
+    Fixture to monkeypatch the gmsh module with a dummy class,
+    simulating a successful import and initialization.
+    """
+    monkeypatch.setattr(gmsh_runner, "gmsh", DummyGmsh())
 
 
 
