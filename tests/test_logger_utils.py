@@ -2,8 +2,6 @@
 
 import pytest
 import sys
-import builtins
-from unittest.mock import patch
 from src import logger_utils as log
 
 

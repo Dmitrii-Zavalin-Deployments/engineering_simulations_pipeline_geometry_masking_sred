@@ -1,8 +1,7 @@
 # tests/utils/test_gmsh_input_check.py
 
 import pytest
-import os
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from src.utils.gmsh_input_check import (
     validate_step_has_volumes,
     ValidationError

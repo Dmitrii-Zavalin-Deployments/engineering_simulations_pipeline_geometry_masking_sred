@@ -1,8 +1,5 @@
 # tests/test_gmsh_runner.py
 
-import builtins
-import io
-import os
 import types
 import pytest
 

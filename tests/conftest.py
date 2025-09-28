@@ -3,7 +3,7 @@
 import sys
 import pathlib
 import pytest
-from unittest.mock import patch, mock_open
+from unittest.mock import patch
 
 # Adds src/ directory to sys.path for all tests
 SRC_PATH = pathlib.Path(__file__).resolve().parents[1] / "src"

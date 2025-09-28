@@ -1,8 +1,5 @@
 # tests/rules/test_config.py
 
-import os
-import builtins
-import pytest
 
 import src.rules.config as config
 

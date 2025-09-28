@@ -1,8 +1,6 @@
 # tests/unit/conftest.py
 
 import types
-import pytest
-import src.gmsh_runner as gmsh_runner
 
 class DummyGmshModel:
     def __init__(self, bbox=(0,0,0,10,10,10), inside_points=None, entities_ret=None):

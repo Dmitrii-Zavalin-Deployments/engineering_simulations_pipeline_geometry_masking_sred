@@ -1,6 +1,5 @@
 # tests/unit/test_gmsh_runner_mask_generation.py
 
-import pytest
 import src.gmsh_runner as gmsh_runner
 from tests.unit.conftest import DummyGmsh  # reuse dummy classes/fixture from conftest
 
