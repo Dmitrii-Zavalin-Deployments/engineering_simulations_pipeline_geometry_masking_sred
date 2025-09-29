@@ -19,7 +19,6 @@ class ValidationError(Exception):
     """Raised when STEP file validation fails."""
 
 
-    Parameters:
         step_path (str or dict): Either a file path or injected STEP payload (test-only)
 
     Raises:
