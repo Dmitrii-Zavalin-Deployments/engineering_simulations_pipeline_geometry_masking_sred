@@ -1,5 +1,4 @@
 import pytest
-import os
 from unittest.mock import patch, MagicMock
 from src.upload_to_dropbox import upload_file, dropbox
 

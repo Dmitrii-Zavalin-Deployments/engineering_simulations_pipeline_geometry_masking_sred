@@ -1,6 +1,5 @@
 # 📄 src/rules/rule_engine_utils.py
 
-import logging
 
 
 def is_symbolic_reference(val: str) -> bool:
