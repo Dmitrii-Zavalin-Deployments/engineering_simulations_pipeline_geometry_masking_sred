@@ -24,7 +24,6 @@ class ValidationError(Exception):
 
     Raises:
         FileNotFoundError: If the file path is invalid.
-        ValidationError: If no 3D volume entities are found.
         KeyError: If STEP input dict is malformed.
     """
     import os
