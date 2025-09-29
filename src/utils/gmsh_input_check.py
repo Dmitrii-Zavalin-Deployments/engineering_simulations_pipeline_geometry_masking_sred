@@ -19,6 +19,11 @@ class ValidationError(Exception):
     """Raised when STEP file validation fails."""
 
 
+def validate_step_has_volumes(step_path):
+    """
+    Checks if a STEP file contains at least one 3D volume.
+
+    Args:
         step_path (str or dict): Either a file path or injected STEP payload (test-only)
 
     Raises:
@@ -45,4 +50,3 @@ class ValidationError(Exception):
 
 
 
-"""

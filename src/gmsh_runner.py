@@ -129,12 +129,7 @@ def extract_bounding_box_with_gmsh(step_path, resolution=None, flow_region="inte
             "flattening_order": "x-major"
         }
 
-    finally:
-        try:
-            gmsh.finalize()
-        except Exception:
     except Exception as e:
-    pass
         print(f"An error occurred: {e}")
         raise
     finally:
@@ -166,6 +161,5 @@ if __name__ == "__main__":
     if args.output:
         with open(args.output, "w") as f:
             json.dump(result, f, indent=2)
-
 
 
