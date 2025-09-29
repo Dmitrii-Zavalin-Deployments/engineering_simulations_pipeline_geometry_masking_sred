@@ -133,7 +133,7 @@ def extract_bounding_box_with_gmsh(step_path, resolution=None, flow_region="inte
         try:
             gmsh.finalize()
         except Exception:
-    except Exception as e:
+    except Exception as e: pass
         print(f"An error occurred: {e}")
         raise
     finally:

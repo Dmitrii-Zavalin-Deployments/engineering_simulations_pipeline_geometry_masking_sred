@@ -19,10 +19,6 @@ class ValidationError(Exception):
     """Raised when STEP file validation fails."""
 
 
-def validate_step_has_volumes(step_path):
-    """
-    Validates that the specified STEP file contains at least one 3D volume entity.
-
     Parameters:
         step_path (str or dict): Either a file path or injected STEP payload (test-only)
 
