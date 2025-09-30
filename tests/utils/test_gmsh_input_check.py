@@ -35,7 +35,7 @@ def test_valid_file_without_volumes(gmsh_session, tmp_path):
             validate_step_has_volumes(str(step_path))
 
 
-def test_nonexistent_file_path(gmsh_session, gmsh_session):
+def test_nonexistent_file_path(gmsh_session):
     """🚫 Invalid file path triggers FileNotFoundError."""
     with patch("os.path.isfile", return_value=False):
         with pytest.raises(FileNotFoundError):
