@@ -1,38 +1,180 @@
 import pytest
+from src.validation.expression_utils import (
+    normalize_quotes,
+    parse_literal,
+    is_literal,
+    is_symbolic_reference,
+    is_valid_numeric_literal
+)
 
-def test_evaluate_expression_basic_arithmetic():
-    """Test basic arithmetic expressions."""
-    assert evaluate_expression("1 + 2") == 3
-    assert evaluate_expression("10 - 5") == 5
-    assert evaluate_expression("3 * 4") == 12
-    assert evaluate_expression("10 / 2") == 5.0
-    assert evaluate_expression("(2 + 3) * 4") == 20
+# --- Test normalize_quotes ---
+@pytest.mark.parametrize("input_expr, expected_output", [
+    # Redundant quotes
+    ("'''hello'''", "'hello'"),
+    ('"""world"""', '"world"'),
+    ("''string''", "'string'"),
+    ('""data""', '"data"'),
+    
+    # Mixed quotes (should handle inner-most)
+    ("''' 'inner' '''", "' 'inner' '"), # Original logic is simple replacement, not recursive parsing
+    
+    # Already clean
+    ("'clean'", "'clean'"),
+    ('"clean"', '"clean"'),
+    ("numeric", "numeric"),
+    
+    # Edge cases
+    ("", ""),
+    (" ", ""),
+    (" ' ' ", "' '"),
+    ("'''", "'"), # Three quotes becomes one
+    ('"""', '"'), # Three quotes becomes one
+])
+def test_normalize_quotes(input_expr, expected_output):
+    """Test that redundant or deeply nested quotes are correctly normalized."""
+    assert normalize_quotes(input_expr) == expected_output
 
-def test_evaluate_expression_with_variables():
-    """Test expressions with context variables."""
-    context = {"x": 5, "y": 10}
-    assert evaluate_expression("x + y", context) == 15
-    assert evaluate_expression("x * (y - 2)", context) == 40
-    assert evaluate_expression("x / 2", context) == 2.5
 
-def test_evaluate_expression_with_complex_variables():
-    """Test expressions with complex variable names and nesting."""
-    context = {"voxel_size": 2, "limit": 100}
-    assert evaluate_expression("voxel_size * 50", context) == 100
-    assert evaluate_expression("voxel_size < limit", context) is True
+# --- Test parse_literal ---
+@pytest.mark.parametrize("input_value, expected_type, expected_output", [
+    # Numerics
+    ("42", int, 42),
+    ("3.1415", float, 3.1415),
+    ("-100", int, -100),
+    ("0.0", float, 0.0),
+    ("00123", int, 123), # Handles zero padding via isdigit/int conversion
 
-def test_evaluate_expression_with_unsupported_ops():
-    """Test that unsupported operations raise a ValueError."""
-    with pytest.raises(ValueError):
-        evaluate_expression("1 ** 2")
+    # Booleans/Nulls (case-insensitive)
+    ("true", bool, True),
+    ("TRUE", bool, True),
+    ("True", bool, True),
+    ("false", bool, False),
+    ("null", type(None), None),
+    ("NULL", type(None), None),
+    ("none", type(None), None),
 
-def test_evaluate_expression_with_invalid_expression():
-    """Test that invalid expressions raise an exception."""
-    with pytest.raises(Exception):
-        evaluate_expression("1 + ")
+    # Strings (with and without quotes)
+    ("'hello'", str, "hello"),
+    ('"world"', str, "world"),
+    ("unquoted string", str, "unquoted string"),
+    ("'42'", str, "42"), # Should be treated as a string, not int
+    ('"3.14"', str, "3.14"), # Should be treated as a string, not float
+    
+    # Nested strings (after quote normalization)
+    ("'''nested'''", str, "nested"),
+    
+    # Non-string input (should be returned as is)
+    (123, int, 123),
+    (True, bool, True),
+    (None, type(None), None),
+    
+    # Expressions that should fail ast.literal_eval and return as string
+    ("x.y", str, "x.y"),
+    ("[1, 2]", list, [1, 2]), # ast.literal_eval should handle lists
+])
+def test_parse_literal_conversions(input_value, expected_type, expected_output):
+    """Test safe conversion of string representations to Python literals."""
+    result = parse_literal(input_value)
+    assert result == expected_output
+    assert isinstance(result, expected_type)
 
-def test_evaluate_expression_with_missing_variable():
-    """Test that a missing variable in context raises an exception."""
-    context = {"x": 5}
-    with pytest.raises(NameError):
-        evaluate_expression("x + y", context)
+def test_parse_literal_complex_types():
+    """Test parse_literal handling of complex types that ast.literal_eval can handle."""
+    # List
+    assert parse_literal("[1, 2, 'three']") == [1, 2, 'three']
+    assert isinstance(parse_literal("[1, 2, 'three']"), list)
+    
+    # Dictionary
+    assert parse_literal("{'a': 1, 'b': 'two'}") == {'a': 1, 'b': 'two'}
+    assert isinstance(parse_literal("{'a': 1, 'b': 'two'}"), dict)
+    
+    # Tuple
+    assert parse_literal("(1, 2)") == (1, 2)
+    assert isinstance(parse_literal("(1, 2)"), tuple)
+
+def test_parse_literal_non_literal_fallback():
+    """Test that invalid expressions are returned as strings (fallback)."""
+    assert parse_literal("x + 1") == "x + 1"
+    assert parse_literal("system.variable") == "system.variable"
+    assert parse_literal("$variable") == "$variable"
+
+# --- Test is_literal ---
+@pytest.mark.parametrize("token, expected", [
+    # Primitive types
+    ("true", True),
+    ("FALSE", True),
+    ("null", True),
+    ("NONE", True),
+    
+    # Numeric
+    ("42", True),
+    ("-10", False), # is_numeric() check is simple and does not support '-'
+    ("3.14", False), # is_numeric() check is simple and does not support '.'
+    
+    # String literals
+    ("'hello'", True),
+    ('"world"', True),
+    (" ' 42 ' ", True),
+    
+    # Non-literals (should return False)
+    ("variable.name", False),
+    ("10.5", False),
+    ("-5", False),
+    ("not literal", False),
+])
+def test_is_literal(token, expected):
+    """Test detection of primitive literal tokens."""
+    assert is_literal(token) == expected
+
+# --- Test is_symbolic_reference ---
+@pytest.mark.parametrize("input_val, expected", [
+    # True symbolic references
+    ("x.y", True),
+    ("system.status.code", True),
+    ("user[id]", True),
+    ("data[1].value", True),
+    
+    # False (Literals/Numerics)
+    ("42", False),
+    ("150.0", False),
+    ("-3.14", False),
+    ("true", False),
+    ("Null", False),
+    ("'string'", False),
+    ('"string"', False),
+    
+    # Edge Cases
+    ("", False),
+    (" ", False),
+    ("4.2.1", True), # Contains a '.', so it is considered symbolic (e.g. version string)
+    ("42[id]", True), # Contains brackets
+    (123, False), # Non-string input
+])
+def test_is_symbolic_reference(input_val, expected):
+    """Test detection of symbolic references (variables, paths) excluding literals."""
+    assert is_symbolic_reference(input_val) == expected
+
+# --- Test is_valid_numeric_literal ---
+@pytest.mark.parametrize("input_val, expected", [
+    # Valid Numerics
+    ("42", True),
+    ("-100", True),
+    ("3.1415", True),
+    ("1e5", True),
+    (".5", True),
+    
+    # Invalid Numerics
+    ("hello", False),
+    ("42a", False),
+    ("10.5.2", False),
+    ("", False),
+    (" ", False),
+    ("true", False),
+    ("null", False),
+])
+def test_is_valid_numeric_literal(input_val, expected):
+    """Test safe determination of whether a string can be coerced to float."""
+    assert is_valid_numeric_literal(input_val) == expected
+
+
+
