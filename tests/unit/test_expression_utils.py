@@ -1,5 +1,4 @@
 import pytest
-from src.validation.expression_utils import evaluate_rule_expression
 
 def test_evaluate_expression_basic_arithmetic():
     """Test basic arithmetic expressions."""

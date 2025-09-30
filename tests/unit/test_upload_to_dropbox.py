@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from src.upload_to_dropbox import upload_file_to_dropbox, dropbox
+from src.upload_to_dropbox import dropbox
 
 # Mock the dropbox API client
 @pytest.fixture
