@@ -1,7 +1,7 @@
 import pytest
 import os
 from unittest.mock import patch, MagicMock
-from src.download_dropbox_files import download_all_files, dropbox
+from src.download_dropbox_files import download_all_dropbox_files, dropbox
 
 # Mock the dropbox API client to avoid real network calls
 @pytest.fixture
