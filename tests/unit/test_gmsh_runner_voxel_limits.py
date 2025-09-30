@@ -1,6 +1,5 @@
 import pytest
 from src.gmsh_runner import extract_bounding_box_with_gmsh
-from tests.unit.conftest import dummy_gmsh_instance
 from tests.helpers.assertions import assert_error_contains
 from tests.helpers.constants import EXPECTED_ERROR_PREFIX
 

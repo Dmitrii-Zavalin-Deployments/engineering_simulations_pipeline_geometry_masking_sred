@@ -1,6 +1,4 @@
-import pytest
 from src.gmsh_runner import extract_bounding_box_with_gmsh
-from tests.unit.conftest import dummy_gmsh_instance
 
 # Paths to mock files
 CUBE_STEP_PATH = "test_models/test_cube.step"
