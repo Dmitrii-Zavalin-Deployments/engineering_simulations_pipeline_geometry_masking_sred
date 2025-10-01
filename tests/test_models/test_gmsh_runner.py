@@ -1,5 +1,4 @@
 import json
-import os
 import unittest
 from pathlib import Path
 from src.gmsh_runner import extract_bounding_box_with_gmsh
