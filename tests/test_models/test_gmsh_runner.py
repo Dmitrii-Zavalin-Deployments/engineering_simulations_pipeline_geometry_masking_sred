@@ -1,9 +1,8 @@
-# 
-
 import json
+import os
 import unittest
 from pathlib import Path
-from src.gmsh_runner import extract_bounding_box_with_gmsh # Ensure this import path is correct
+from src.gmsh_runner import extract_bounding_box_with_gmsh
 
 class GmshRunnerTests(unittest.TestCase):
     """
@@ -12,11 +11,11 @@ class GmshRunnerTests(unittest.TestCase):
 
     def test_all_models(self):
         """
-        Iterates through all .step files in the directory, runs the gmsh runner,
+        Iterates through all .step files in the test_models directory, runs the gmsh runner,
         and asserts the output against the corresponding JSON file.
         """
-        # Get the directory of the current test file
-        test_dir = Path(__file__).parent
+        # Get the path to the 'test_models' subdirectory
+        test_dir = Path(__file__).parent / "test_models"
         print(f"Searching for test models in: {test_dir}")
 
         # Loop through all files in the test directory
