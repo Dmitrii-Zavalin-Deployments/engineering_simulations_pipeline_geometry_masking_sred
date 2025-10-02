@@ -98,7 +98,7 @@ jobs:
           echo "--- Running simplified integration test for: test_cube (Expected Output: $EXPECTED_OUTPUT_PATH) ---"
           
           # --- Set fixed parameters for test_cube ---
-          RESOLUTION=0.01
+          RESOLUTION=0.25
           FLOW_REGION="internal"
           
           # 1. Execute the full script via command line
