@@ -4,6 +4,7 @@ import json
 import unittest
 from pathlib import Path
 from src.gmsh_runner import extract_bounding_box_with_gmsh
+from src.utils.gmsh_input_check import ValidationError # FIX: Import specific exception class
 
 class GmshRunnerTests(unittest.TestCase):
     """
@@ -22,13 +23,22 @@ class GmshRunnerTests(unittest.TestCase):
         Iterates through all valid .step files in the test_models directory, 
         runs the gmsh runner, and asserts the output against the corresponding JSON file.
         The invalid geometry test case is handled separately.
+        
+        NOTE: This run is currently filtered to only test 'test_cube.step'.
         """
         test_dir = self.TEST_MODELS_DIR
         print(f"Searching for test models in: {test_dir}")
 
         # Loop through all files in the test directory
         for step_file in test_dir.glob("*.step"):
-            # Skip the explicitly invalid geometry file
+            
+            # --- START: FILTER FOR USER REQUEST ---
+            # Only test test_cube.step as requested.
+            if step_file.name != "test_cube.step":
+                continue
+            # --- END: FILTER FOR USER REQUEST ---
+
+            # Skip the explicitly invalid geometry file (if we were running all files)
             if step_file.name == self.INVALID_GEOMETRY_FILE:
                 continue
 
@@ -37,6 +47,11 @@ class GmshRunnerTests(unittest.TestCase):
 
                 # Define the corresponding output JSON file path
                 json_file_name = step_file.stem + "_internal_output.json"
+                
+                # Special handling for test_cube.step, which uses 'test_cube_output.json'
+                if step_file.name == "test_cube.step":
+                    json_file_name = "test_cube_output.json"
+                
                 json_path = test_dir / json_file_name
 
                 # Skip if the corresponding JSON file doesn't exist
@@ -70,23 +85,24 @@ class GmshRunnerTests(unittest.TestCase):
 
     def test_invalid_geometry_raises_error(self):
         """
-        Tests that extract_bounding_box_with_gmsh raises a ValueError 
+        Tests that extract_bounding_box_with_gmsh raises a ValidationError 
         when provided with a STEP file that contains no 3D volumes.
         """
         invalid_step_path = str(self.TEST_MODELS_DIR / self.INVALID_GEOMETRY_FILE)
         
-        # Assert that a ValueError is raised for the invalid file
-        with self.assertRaises(ValueError) as context:
+        # CRITICAL FIX: Assert that the specific ValidationError is raised
+        with self.assertRaises(ValidationError) as context:
             extract_bounding_box_with_gmsh(step_path=invalid_step_path)
             
-        expected_error_message = f"STEP file contains no 3D volumes: {invalid_step_path}"
+        # Check for part of the expected error message
         self.assertIn("STEP file contains no 3D volumes", str(context.exception))
         
-        print(f"✅ Test passed for {self.INVALID_GEOMETRY_FILE} (correctly raised ValueError)")
+        print(f"✅ Test passed for {self.INVALID_GEOMETRY_FILE} (correctly raised ValidationError)")
 
 
 if __name__ == "__main__":
     unittest.main()
+
 
 
 
