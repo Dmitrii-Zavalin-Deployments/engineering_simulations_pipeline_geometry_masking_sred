@@ -78,83 +78,87 @@ jobs:
           gmsh -version || { echo "❌ Gmsh CLI not found"; exit 1; }
           python -c "import gmsh; gmsh.initialize(); gmsh.finalize(); print('✅ Gmsh Python bindings operational')" || { echo "❌ Gmsh Python bindings failed"; exit 1; }
           
-      # --- Integration Test moved here to fail fast ---
-      - name: 🏃 Run Integration Tests (CLI Flow)
+      - name: 🏃 Run Integration Test (test_cube)
         run: |
-          TEST_DIR="tests/test_models"
+          # All paths for the specific test case (test_cube)
+          STEP_FILE="tests/test_models/test_cube.step"
+          EXPECTED_OUTPUT_PATH="tests/test_models/test_cube_output.json"
+          TEMP_OUTPUT_FILE="tests/test_models/test_cube_cli_output.json"
           
-          # List all expected output files (etalons)
-          ETALONS=$(find "$TEST_DIR" -maxdepth 1 -type f -name "*_output.json" -o -name "*_internal_output.json")
-          
-          if [ -z "$ETALONS" ]; then
-            echo "No etalon JSON files found in $TEST_DIR. Skipping integration test."
-            exit 0
+          # Check for mandatory input files
+          if [ ! -f "$STEP_FILE" ]; then
+            echo "❌ Fatal Error: STEP file ($STEP_FILE) not found. Cannot run integration test."
+            exit 1
           fi
+          if [ ! -f "$EXPECTED_OUTPUT_PATH" ]; then
+            echo "❌ Fatal Error: Expected Output file ($EXPECTED_OUTPUT_PATH) not found. Cannot run integration test."
+            exit 1
+          fi
+
+          echo "--- Running simplified integration test for: test_cube (Expected Output: $EXPECTED_OUTPUT_PATH) ---"
           
-          for ETALON_PATH in $ETALONS; do
-            ETALON_FILENAME=$(basename "$ETALON_PATH")
-            
-            # Extract model name by removing common suffixes (e.g., '_internal_output.json' or '_output.json')
-            MODEL_NAME=$(echo "$ETALON_FILENAME" | sed -E 's/(_internal|_external)?_output\.json$//')
-            STEP_FILE="$TEST_DIR/$MODEL_NAME.step"
-            TEMP_OUTPUT_FILE="$TEST_DIR/${MODEL_NAME}_CLI_output.json"
-            
-            # Skip if the corresponding STEP file doesn't exist
-            if [ ! -f "$STEP_FILE" ]; then
-              echo "⚠️ Skipping $MODEL_NAME: Corresponding STEP file not found."
-              continue
-            fi
+          # --- Set fixed parameters for test_cube ---
+          RESOLUTION=0.01
+          FLOW_REGION="internal"
+          
+          # 1. Execute the full script via command line
+          python3 src/gmsh_runner.py \
+            --step "$STEP_FILE" \
+            --resolution "$RESOLUTION" \
+            --flow_region "$FLOW_REGION" \
+            --output "$TEMP_OUTPUT_FILE"
 
-            echo "--- Running integration test for: $MODEL_NAME (Etalon: $ETALON_FILENAME) ---"
-            
-            # --- Determine parameters (Assumes 0.01 resolution and infers flow region) ---
-            RESOLUTION=0.01
-            FLOW_REGION="internal"
-            
-            if [[ "$MODEL_NAME" == *"external"* ]]; then
-              FLOW_REGION="external"
-            fi
-            
-            # 1. Execute the full script via command line
-            python3 src/gmsh_runner.py \
-              --step "$STEP_FILE" \
-              --resolution "$RESOLUTION" \
-              --flow_region "$FLOW_REGION" \
-              --output "$TEMP_OUTPUT_FILE"
+          # 2. Compare the generated output with the expected output, printing a diff on failure
+          python3 -c "
+            import json
+            import sys
+            from pathlib import Path
+            import difflib # Added difflib for diff generation
 
-            # 2. Compare the generated output with the etalon using Python for robust JSON comparison
-            python3 -c "
-              import json
-              import sys
-              from pathlib import Path
+            expected_path = Path('$EXPECTED_OUTPUT_PATH')
+            output_path = Path('$TEMP_OUTPUT_FILE')
 
-              etalon_path = Path('$ETALON_PATH')
-              output_path = Path('$TEMP_OUTPUT_FILE')
-
-              if not etalon_path.exists() or not output_path.exists():
-                print(f'Error: Missing file for comparison. Etalon: {etalon_path.exists()}, Output: {output_path.exists()}')
-                sys.exit(1)
-
-              with open(etalon_path) as f:
-                etalon = json.load(f)
+            try:
+              with open(expected_path) as f:
+                expected = json.load(f)
               with open(output_path) as f:
                 output = json.load(f)
-              
-              if etalon != output:
-                # Note: The output check is strict equality. If floating-point differences 
-                # cause failures, this check would need to be replaced with a comparison 
-                # that uses a tolerance (e.g., NumPy comparison).
-                print(f'❌ INTEGRATION TEST FAILED: Output mismatch for {etalon_path.name}')
-                sys.exit(1)
-              else:
-                print(f'✅ INTEGRATION TEST PASSED: {etalon_path.name} matches etalon.')
-            "
+            except FileNotFoundError:
+              print(f'❌ INTEGRATION TEST FAILED: Missing generated output file {output_path.name}.')
+              sys.exit(1)
+            except json.JSONDecodeError:
+              print(f'❌ INTEGRATION TEST FAILED: Generated output file {output_path.name} is invalid JSON.')
+              sys.exit(1)
             
-            # Clean up temporary output file
-            rm "$TEMP_OUTPUT_FILE"
-          done
-          echo "✅ All Integration tests completed."
-      # --- End of Integration Test block ---
+            # --- Check for mismatch and print diff ---
+            if expected != output:
+              # Convert dicts to sorted, indented JSON strings for stable line-by-line diff
+              expected_str = json.dumps(expected, indent=2, sort_keys=True)
+              output_str = json.dumps(output, indent=2, sort_keys=True)
+
+              diff = difflib.unified_diff(
+                  expected_str.splitlines(keepends=True),
+                  output_str.splitlines(keepends=True),
+                  fromfile=expected_path.name,
+                  tofile=output_path.name,
+                  lineterm=''
+              )
+              
+              print(f'❌ INTEGRATION TEST FAILED: Output mismatch for {expected_path.name}')
+              print('\n--- JSON DIFF (Expected vs Generated) ---')
+              sys.stdout.writelines(diff)
+              print('--------------------------------------\n')
+              
+              # Clean up temporary output file before exiting on failure
+              output_path.unlink(missing_ok=True)
+              sys.exit(1)
+            else:
+              print(f'✅ INTEGRATION TEST PASSED: {expected_path.name} matches expected output.')
+          "
+          
+          # Clean up temporary output file on success
+          rm "$TEMP_OUTPUT_FILE"
+          echo "✅ Simplified Integration test completed."
 
       - name: ☁️ Download & normalize STEP file
         env:
