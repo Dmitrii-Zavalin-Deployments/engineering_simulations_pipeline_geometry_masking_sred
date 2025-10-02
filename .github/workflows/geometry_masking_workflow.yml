@@ -1,5 +1,3 @@
-# 📄 .github/workflows/STEP Spatial Metadata Processor.yml
-
 name: STEP Spatial Metadata Processor
 
 on:
@@ -79,6 +77,84 @@ jobs:
         run: |
           gmsh -version || { echo "❌ Gmsh CLI not found"; exit 1; }
           python -c "import gmsh; gmsh.initialize(); gmsh.finalize(); print('✅ Gmsh Python bindings operational')" || { echo "❌ Gmsh Python bindings failed"; exit 1; }
+          
+      # --- Integration Test moved here to fail fast ---
+      - name: 🏃 Run Integration Tests (CLI Flow)
+        run: |
+          TEST_DIR="tests/test_models"
+          
+          # List all expected output files (etalons)
+          ETALONS=$(find "$TEST_DIR" -maxdepth 1 -type f -name "*_output.json" -o -name "*_internal_output.json")
+          
+          if [ -z "$ETALONS" ]; then
+            echo "No etalon JSON files found in $TEST_DIR. Skipping integration test."
+            exit 0
+          fi
+          
+          for ETALON_PATH in $ETALONS; do
+            ETALON_FILENAME=$(basename "$ETALON_PATH")
+            
+            # Extract model name by removing common suffixes (e.g., '_internal_output.json' or '_output.json')
+            MODEL_NAME=$(echo "$ETALON_FILENAME" | sed -E 's/(_internal|_external)?_output\.json$//')
+            STEP_FILE="$TEST_DIR/$MODEL_NAME.step"
+            TEMP_OUTPUT_FILE="$TEST_DIR/${MODEL_NAME}_CLI_output.json"
+            
+            # Skip if the corresponding STEP file doesn't exist
+            if [ ! -f "$STEP_FILE" ]; then
+              echo "⚠️ Skipping $MODEL_NAME: Corresponding STEP file not found."
+              continue
+            fi
+
+            echo "--- Running integration test for: $MODEL_NAME (Etalon: $ETALON_FILENAME) ---"
+            
+            # --- Determine parameters (Assumes 0.01 resolution and infers flow region) ---
+            RESOLUTION=0.01
+            FLOW_REGION="internal"
+            
+            if [[ "$MODEL_NAME" == *"external"* ]]; then
+              FLOW_REGION="external"
+            fi
+            
+            # 1. Execute the full script via command line
+            python3 src/gmsh_runner.py \
+              --step "$STEP_FILE" \
+              --resolution "$RESOLUTION" \
+              --flow_region "$FLOW_REGION" \
+              --output "$TEMP_OUTPUT_FILE"
+
+            # 2. Compare the generated output with the etalon using Python for robust JSON comparison
+            python3 -c "
+              import json
+              import sys
+              from pathlib import Path
+
+              etalon_path = Path('$ETALON_PATH')
+              output_path = Path('$TEMP_OUTPUT_FILE')
+
+              if not etalon_path.exists() or not output_path.exists():
+                print(f'Error: Missing file for comparison. Etalon: {etalon_path.exists()}, Output: {output_path.exists()}')
+                sys.exit(1)
+
+              with open(etalon_path) as f:
+                etalon = json.load(f)
+              with open(output_path) as f:
+                output = json.load(f)
+              
+              if etalon != output:
+                # Note: The output check is strict equality. If floating-point differences 
+                # cause failures, this check would need to be replaced with a comparison 
+                # that uses a tolerance (e.g., NumPy comparison).
+                print(f'❌ INTEGRATION TEST FAILED: Output mismatch for {etalon_path.name}')
+                sys.exit(1)
+              else:
+                print(f'✅ INTEGRATION TEST PASSED: {etalon_path.name} matches etalon.')
+            "
+            
+            # Clean up temporary output file
+            rm "$TEMP_OUTPUT_FILE"
+          done
+          echo "✅ All Integration tests completed."
+      # --- End of Integration Test block ---
 
       - name: ☁️ Download & normalize STEP file
         env:
@@ -127,11 +203,11 @@ jobs:
           from pathlib import Path
           output_path = Path('data/testing-input-output/geometry_masking_gmsh.json')
           if not output_path.exists():
-              raise FileNotFoundError(f'Schema validation failed — file not found: {output_path}')
+            raise FileNotFoundError(f'Schema validation failed — file not found: {output_path}')
           with open('schemas/domain_schema.json') as s, open(output_path) as d:
-              schema = json.load(s)
-              data = json.load(d)
-              jsonschema.validate(instance=data, schema=schema)
+            schema = json.load(s)
+            data = json.load(d)
+            jsonschema.validate(instance=data, schema=schema)
           "
           echo "✅ Output schema validated"
 
