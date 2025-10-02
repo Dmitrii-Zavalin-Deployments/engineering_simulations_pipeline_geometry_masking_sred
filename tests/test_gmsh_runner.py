@@ -4,7 +4,6 @@ import json
 import unittest
 from pathlib import Path
 from src.gmsh_runner import extract_bounding_box_with_gmsh
-from src.utils.gmsh_input_check import ValidationError
 
 class GmshRunnerTests(unittest.TestCase):
     """
@@ -77,7 +76,7 @@ class GmshRunnerTests(unittest.TestCase):
         invalid_step_path = str(self.TEST_MODELS_DIR / self.INVALID_GEOMETRY_FILE)
         
         # Assert that a ValueError is raised for the invalid file
-        with self.assertRaises(ValidationError) as context:
+        with self.assertRaises(ValueError) as context:
             extract_bounding_box_with_gmsh(step_path=invalid_step_path)
             
         expected_error_message = f"STEP file contains no 3D volumes: {invalid_step_path}"
