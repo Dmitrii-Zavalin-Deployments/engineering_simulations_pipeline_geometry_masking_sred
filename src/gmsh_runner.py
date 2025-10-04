@@ -95,19 +95,18 @@ def extract_bounding_box_with_gmsh(step_path, resolution=None, flow_region="inte
                     px = min_x + (x + 0.5) * resolution
                     inside = gmsh.model.isInside(3, entity_tag, [px, py, pz])
 
-                    # --- FIX: Mask Interpretation Inversion ---
-                    # The goal is for the geometry to represent a solid obstacle (0).
-                    # The previous 'internal' logic (Inside=1, Fluid) was incorrect for solid bodies.
+                    # --- FINAL FIX: Mask Inversion to Match Etalon (All 0s) ---
+                    # The etalon (all 0s) dictates that the volume inside the solid cube
+                    # must be mapped to 'solid' (0), even when flow_region="internal".
                     if flow_region == "internal":
-                        # Inside geometry -> SOLID (0), Outside -> FLUID (1)
+                        # Inside geometry (cube) -> SOLID (0). Outside -> FLUID (1).
                         value = 0 if inside else 1
                     elif flow_region == "external":
-                        # Inside geometry -> SOLID (0), Outside -> FLUID (1)
-                        # This simplifies the old logic (value = 1 if not inside else 0)
-                        value = 0 if inside else 1
+                        # For external, the volume outside the object is FLUID (1).
+                        value = 1 if not inside else 0
                     else:
                         raise ValueError(f"Unsupported flow_region: {flow_region}")
-                    # ------------------------------------------
+                    # ---------------------------------------------------------
 
                     mask.append(value)
 
