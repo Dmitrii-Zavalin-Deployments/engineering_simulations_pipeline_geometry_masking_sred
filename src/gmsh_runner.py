@@ -95,12 +95,19 @@ def extract_bounding_box_with_gmsh(step_path, resolution=None, flow_region="inte
                     px = min_x + (x + 0.5) * resolution
                     inside = gmsh.model.isInside(3, entity_tag, [px, py, pz])
 
+                    # --- FIX: Mask Interpretation Inversion ---
+                    # The goal is for the geometry to represent a solid obstacle (0).
+                    # The previous 'internal' logic (Inside=1, Fluid) was incorrect for solid bodies.
                     if flow_region == "internal":
-                        value = 1 if inside else 0  # ✅ Corrected logic
+                        # Inside geometry -> SOLID (0), Outside -> FLUID (1)
+                        value = 0 if inside else 1
                     elif flow_region == "external":
-                        value = 1 if not inside else 0
+                        # Inside geometry -> SOLID (0), Outside -> FLUID (1)
+                        # This simplifies the old logic (value = 1 if not inside else 0)
+                        value = 0 if inside else 1
                     else:
                         raise ValueError(f"Unsupported flow_region: {flow_region}")
+                    # ------------------------------------------
 
                     mask.append(value)
 
@@ -161,5 +168,6 @@ if __name__ == "__main__":
     if args.output:
         with open(args.output, "w") as f:
             json.dump(result, f, indent=2)
+
 
 
