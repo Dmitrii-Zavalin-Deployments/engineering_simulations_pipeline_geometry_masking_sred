@@ -26,11 +26,11 @@ jobs:
       - name: 🧹 Run autoflake to remove unused imports
         run: |
           autoflake --in-place --recursive --remove-unused-variables --remove-all-unused-imports .
-          
+
       - name: 💀 Run vulture to find dead code
         run: |
           vulture --exclude .github,tests,data .
-          
+
       - name: 🚀 Commit autoflake changes
         env:
           GIT_USER_NAME: ${{ secrets.GIT_USER_NAME }}
@@ -48,7 +48,6 @@ jobs:
     env:
       PYTHONPATH: ${{ github.workspace }}
       ENABLE_RULE_DEBUG: true
-
     steps:
       - name: 🛎️ Checkout repository
         uses: actions/checkout@v3
@@ -77,15 +76,13 @@ jobs:
         run: |
           gmsh -version || { echo "❌ Gmsh CLI not found"; exit 1; }
           python -c "import gmsh; gmsh.initialize(); gmsh.finalize(); print('✅ Gmsh Python bindings operational')" || { echo "❌ Gmsh Python bindings failed"; exit 1; }
-          
+
       - name: 🏃 Run Integration Test (test_cube)
         run: |
-          # All paths for the specific test case (test_cube)
           STEP_FILE="tests/test_models/test_cube.step"
           EXPECTED_OUTPUT_PATH="tests/test_models/test_cube_output.json"
           TEMP_OUTPUT_FILE="tests/test_models/test_cube_cli_output.json"
-          
-          # Check for mandatory input files
+
           if [ ! -f "$STEP_FILE" ]; then
             echo "❌ Fatal Error: STEP file ($STEP_FILE) not found. Cannot run integration test."
             exit 1
@@ -96,22 +93,19 @@ jobs:
           fi
 
           echo "--- Running simplified integration test for: test_cube (Expected Output: $EXPECTED_OUTPUT_PATH) ---"
-          
-          # --- Set fixed parameters for test_cube ---
+
           RESOLUTION=0.25
           FLOW_REGION="internal"
-          
-          # 1. Execute the full script via command line
+
           python3 src/gmsh_runner.py \
             --step "$STEP_FILE" \
             --resolution "$RESOLUTION" \
             --flow_region "$FLOW_REGION" \
             --output "$TEMP_OUTPUT_FILE"
 
-		  # 2. Compare the generated output with the expected output using the new script
           python3 tests/helpers/compare_json.py "$EXPECTED_OUTPUT_PATH" "$TEMP_OUTPUT_FILE"
-      		
-      	  echo "✅ Simplified Integration test completed."
+
+          echo "✅ Simplified Integration test completed."
 
       - name: ☁️ Download & normalize STEP file
         env:
@@ -140,7 +134,6 @@ jobs:
             else
               echo "ℹ️ STEP file is already named input.step. No renaming needed."
             fi
-          fi
 
       - name: 🧠 Extract config & run Gmsh
         run: |
