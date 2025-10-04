@@ -108,57 +108,10 @@ jobs:
             --flow_region "$FLOW_REGION" \
             --output "$TEMP_OUTPUT_FILE"
 
-          # 2. Compare the generated output with the expected output, printing a diff on failure
-          python3 -c "
-            import json
-            import sys
-            from pathlib import Path
-            import difflib # Added difflib for diff generation
-
-            expected_path = Path('$EXPECTED_OUTPUT_PATH')
-            output_path = Path('$TEMP_OUTPUT_FILE')
-
-            try:
-              with open(expected_path) as f:
-                expected = json.load(f)
-              with open(output_path) as f:
-                output = json.load(f)
-            except FileNotFoundError:
-              print(f'❌ INTEGRATION TEST FAILED: Missing generated output file {output_path.name}.')
-              sys.exit(1)
-            except json.JSONDecodeError:
-              print(f'❌ INTEGRATION TEST FAILED: Generated output file {output_path.name} is invalid JSON.')
-              sys.exit(1)
-            
-            # --- Check for mismatch and print diff ---
-            if expected != output:
-              # Convert dicts to sorted, indented JSON strings for stable line-by-line diff
-              expected_str = json.dumps(expected, indent=2, sort_keys=True)
-              output_str = json.dumps(output, indent=2, sort_keys=True)
-
-              diff = difflib.unified_diff(
-                  expected_str.splitlines(keepends=True),
-                  output_str.splitlines(keepends=True),
-                  fromfile=expected_path.name,
-                  tofile=output_path.name,
-                  lineterm=''
-              )
-              
-              print(f'❌ INTEGRATION TEST FAILED: Output mismatch for {expected_path.name}')
-              print('\n--- JSON DIFF (Expected vs Generated) ---')
-              sys.stdout.writelines(diff)
-              print('--------------------------------------\n')
-              
-              # Clean up temporary output file before exiting on failure
-              output_path.unlink(missing_ok=True)
-              sys.exit(1)
-            else:
-              print(f'✅ INTEGRATION TEST PASSED: {expected_path.name} matches expected output.')
-          "
-          
-          # Clean up temporary output file on success
-          rm "$TEMP_OUTPUT_FILE"
-          echo "✅ Simplified Integration test completed."
+		  # 2. Compare the generated output with the expected output using the new script
+          python3 tests/helpers/compare_json.py "$EXPECTED_OUTPUT_PATH" "$TEMP_OUTPUT_FILE"
+      		
+      	  echo "✅ Simplified Integration test completed."
 
       - name: ☁️ Download & normalize STEP file
         env:
