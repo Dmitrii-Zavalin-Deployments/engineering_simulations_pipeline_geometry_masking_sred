@@ -4,26 +4,26 @@ import json
 import unittest
 from pathlib import Path
 from src.gmsh_runner import extract_bounding_box_with_gmsh
-from src.utils.gmsh_input_check import ValidationError # FIX: Import specific exception class
+from src.utils.gmsh_input_check import ValidationError
 
 class GmshRunnerTests(unittest.TestCase):
     """
     Unit tests for the Gmsh runner's geometry mask extraction.
     """
-    
+
     # Define the base path for test models
     # Note: Path is adjusted to navigate from 'tests/' to 'tests/test_models/'
     TEST_MODELS_DIR = Path(__file__).parent / "test_models"
-    
+
     # Define the name of the file that is expected to fail
     INVALID_GEOMETRY_FILE = "mock_invalid_geometry.step"
 
     def test_all_models(self):
         """
-        Iterates through all valid .step files in the test_models directory, 
+        Iterates through all valid .step files in the test_models directory,
         runs the gmsh runner, and asserts the output against the corresponding JSON file.
         The invalid geometry test case is handled separately.
-        
+
         NOTE: This run is currently filtered to only test 'test_cube.step'.
         """
         test_dir = self.TEST_MODELS_DIR
@@ -31,7 +31,7 @@ class GmshRunnerTests(unittest.TestCase):
 
         # Loop through all files in the test directory
         for step_file in test_dir.glob("*.step"):
-            
+
             # --- START: FILTER FOR USER REQUEST ---
             # Only test test_cube.step as requested.
             if step_file.name != "test_cube.step":
@@ -47,11 +47,11 @@ class GmshRunnerTests(unittest.TestCase):
 
                 # Define the corresponding output JSON file path
                 json_file_name = step_file.stem + "_internal_output.json"
-                
+
                 # Special handling for test_cube.step, which uses 'test_cube_output.json'
                 if step_file.name == "test_cube.step":
                     json_file_name = "test_cube_output.json"
-                
+
                 json_path = test_dir / json_file_name
 
                 # Skip if the corresponding JSON file doesn't exist
@@ -69,14 +69,16 @@ class GmshRunnerTests(unittest.TestCase):
 
                 # Run the gmsh runner function
                 try:
+                    # NOTE: Using 'resolution=None' currently defaults to an internally calculated value.
+                    # For test_cube, the log confirmed 0.25mm is the correct value, which the pipeline should infer.
                     actual_output = extract_bounding_box_with_gmsh(
                         step_path=str(step_file),
-                        resolution=None, # Use default resolution
+                        resolution=None,
                         flow_region=flow_region
                     )
 
                     # Assert that the actual output matches the expected output
-                    self.assertEqual(actual_output, expected_output, 
+                    self.assertEqual(actual_output, expected_output,
                                      f"Output mismatch for model: {step_file.name}")
                     print(f"✅ Test passed for {step_file.name}")
 
@@ -85,24 +87,23 @@ class GmshRunnerTests(unittest.TestCase):
 
     def test_invalid_geometry_raises_error(self):
         """
-        Tests that extract_bounding_box_with_gmsh raises a ValidationError 
+        Tests that extract_bounding_box_with_gmsh raises a ValidationError
         when provided with a STEP file that contains no 3D volumes.
         """
         invalid_step_path = str(self.TEST_MODELS_DIR / self.INVALID_GEOMETRY_FILE)
-        
+
         # CRITICAL FIX: Assert that the specific ValidationError is raised
         with self.assertRaises(ValidationError) as context:
             extract_bounding_box_with_gmsh(step_path=invalid_step_path)
-            
+
         # Check for part of the expected error message
         self.assertIn("STEP file contains no 3D volumes", str(context.exception))
-        
+
         print(f"✅ Test passed for {self.INVALID_GEOMETRY_FILE} (correctly raised ValidationError)")
 
 
 if __name__ == "__main__":
     unittest.main()
-
 
 
 
