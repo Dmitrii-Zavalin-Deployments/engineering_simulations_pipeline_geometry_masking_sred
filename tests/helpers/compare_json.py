@@ -35,6 +35,24 @@ def compare_json_outputs(expected_path: str, output_path: str):
 
     # 2. Compare content
     if expected != output:
+        
+        print(f'❌ INTEGRATION TEST FAILED: Output mismatch for {expected_path.name}')
+
+        # --- Enhanced Check for Array Length Mismatch (Targeted for geometry_mask_flat) ---
+        # This check is added to explicitly highlight the most common failure cause in this project.
+        if 'geometry_mask_flat' in expected and 'geometry_mask_flat' in output:
+            expected_mask = expected['geometry_mask_flat']
+            output_mask = output['geometry_mask_flat']
+            
+            if isinstance(expected_mask, list) and isinstance(output_mask, list) and len(expected_mask) != len(output_mask):
+                print("=========================================================================")
+                print(f"⚠️ CRITICAL MISMATCH DETECTED: 'geometry_mask_flat' array length differs.")
+                print(f"   Expected array length: {len(expected_mask)}")
+                print(f"   Generated array length: {len(output_mask)}")
+                print("   This usually means the expected output file is stale and needs regeneration.")
+                print("=========================================================================")
+
+
         # Convert dicts to sorted, indented JSON strings for stable line-by-line diff
         # We use sort_keys=True to ensure key order doesn't cause spurious diffs.
         expected_str = json.dumps(expected, indent=2, sort_keys=True)
@@ -48,7 +66,6 @@ def compare_json_outputs(expected_path: str, output_path: str):
             lineterm=''
         )
 
-        print(f'❌ INTEGRATION TEST FAILED: Output mismatch for {expected_path.name}')
         print('\n--- JSON DIFF (Expected vs Generated) ---')
         sys.stdout.writelines(diff)
         print('--------------------------------------\n')
@@ -71,7 +88,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     compare_json_outputs(args.expected_path, args.output_path)
-
 
 
 
