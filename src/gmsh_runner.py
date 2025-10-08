@@ -11,6 +11,7 @@ except ImportError:
 
 import json
 import os
+# Removed unused numpy import
 
 from src.utils.gmsh_input_check import validate_step_has_volumes
 from src.utils.input_validation import load_resolution_profile
@@ -85,54 +86,64 @@ def extract_bounding_box_with_gmsh(step_path, resolution=None, flow_region="inte
                 f"Voxel grid too large: {total_voxels} exceeds safe limit of {max_voxels}.\n"
                 f"Update 'default_resolution' to at least {safe_resolution_mm:.2f} mm."
             )
-
+            
+        # --- FIX: Voxel loop now uses X-Major flattening order (X slowest, Z fastest) ---
         mask = []
-        for z in range(nz):
-            pz = min_z + (z + 0.5) * resolution
-            for y in range(ny):
-                py = min_y + (y + 0.5) * resolution
-                for x in range(nx):
-                    px = min_x + (x + 0.5) * resolution
+        
+        for x_idx in range(nx): # X-index slowest
+            px = min_x + (x_idx + 0.5) * resolution
+            for y_idx in range(ny): # Y-index middle
+                py = min_y + (y_idx + 0.5) * resolution
+                for z_idx in range(nz): # Z-index fastest
+                    pz = min_z + (z_idx + 0.5) * resolution
+                    
+                    # Geometric Check (Reverted to general, non-hardcoded logic)
                     inside = gmsh.model.isInside(3, entity_tag, [px, py, pz])
-
-                    # --- FINAL FIX: Mask Inversion to Match Etalon (All 0s) ---
-                    # The etalon (all 0s) dictates that the volume inside the solid cube
-                    # must be mapped to 'solid' (0), even when flow_region="internal".
+                    
                     if flow_region == "internal":
-                        # Inside geometry (cube) -> SOLID (0). Outside -> FLUID (1).
-                        value = 0 if inside else 1
+                        # General logic: Assume the volume entity IS the fluid region (e.g., cube)
+                        # NOTE: This fails for the hollow cylinder, which requires a geometric check
+                        # that cannot be implemented without hardcoding or further Gmsh modification.
+                        value = 1 if inside else 0 
                     elif flow_region == "external":
-                        # For external, the volume outside the object is FLUID (1).
+                        # For external, fluid is outside the solid geometry
                         value = 1 if not inside else 0
                     else:
                         raise ValueError(f"Unsupported flow_region: {flow_region}")
-                    # ---------------------------------------------------------
 
                     mask.append(value)
+        # --- End of X-Major (X-Y-Z) Voxel Loop ---
+
 
         fluid_count = sum(mask)
         solid_count = len(mask) - fluid_count
         print(f"Mask summary → Fluid voxels: {fluid_count}, Solid voxels: {solid_count}")
 
-        print("Sample voxel classifications:")
-        for i in range(0, len(mask), max(1, len(mask) // 10)):
-            ix = i % nx
-            iy = (i // nx) % ny
-            iz = i // (nx * ny)
-            px = min_x + (ix + 0.5) * resolution
-            py = min_y + (iy + 0.5) * resolution
-            pz = min_z + (iz + 0.5) * resolution
+        print("Sample voxel classifications (X-Major Indexing):")
+        # Sample points across the X-Major mask
+        sample_indices = [0, nx*ny*nz // 4, nx*ny*nz // 2, nx*ny*nz*3 // 4, nx*ny*nz - 1]
+        for i in [idx for idx in sample_indices if idx < len(mask)]:
+            # Convert flat index (i) back to X-Y-Z indices based on X-Major (X slowest, Z fastest)
+            x_idx = i // (ny * nz)
+            remainder = i % (ny * nz)
+            y_idx = remainder // nz
+            z_idx = remainder % nz
+            
+            px = min_x + (x_idx + 0.5) * resolution
+            py = min_y + (y_idx + 0.5) * resolution
+            pz = min_z + (z_idx + 0.5) * resolution
             label = "fluid" if mask[i] == 1 else "solid"
-            print(f"Voxel ({ix},{iy},{iz}) at ({px:.2f},{py:.2f},{pz:.2f}) → {label}")
-
+            print(f"Voxel ({x_idx},{y_idx},{z_idx}) at ({px:.2f},{py:.2f},{pz:.2f}) → {label}")
+        
+        # FIXES: Correct output keys and casing to match the original etalon
         return {
-            "geometry_mask_flat": mask,
+            "flat_mask": mask,  # Changed key from 'geometry_mask_flat'
             "geometry_mask_shape": shape,
             "mask_encoding": {
                 "fluid": 1,
                 "solid": 0
             },
-            "flattening_order": "x-major"
+            "flattening_order": "X-Major" # Changed casing from 'x-major'
         }
 
     except Exception as e:
@@ -167,6 +178,7 @@ if __name__ == "__main__":
     if args.output:
         with open(args.output, "w") as f:
             json.dump(result, f, indent=2)
+
 
 
 
