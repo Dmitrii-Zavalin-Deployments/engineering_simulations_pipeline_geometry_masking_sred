@@ -1,0 +1,6 @@
+❌ INTEGRATION TEST FAILED: Output mismatch for hollow_cylinder_internal_output.json
+=========================================================================
+⚠️ CRITICAL MISMATCH DETECTED: 'geometry_mask_flat' array length differs.
+   Expected length: 320, Generated length: 512
+   Full JSON diff suppressed due to array size difference.
+=========================================================================
