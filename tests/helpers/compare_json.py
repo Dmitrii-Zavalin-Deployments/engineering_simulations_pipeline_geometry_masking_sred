@@ -1,7 +1,5 @@
 # tests/helpers/compare_json.py
 
-# tests/helpers/compare_json.py
-
 # -----------------------------------------------------------------------------
 # JSON Output Comparator
 # Usage: python3 compare_json.py <expected_path> <output_path>
@@ -14,8 +12,6 @@ import argparse
 import difflib
 from pathlib import Path
 
-# Define the marker file path relative to the current working directory (usually the root of the repo)
-STALE_MARKER_FILE = "test_cube_output_stale.marker"
 # Define the directory where detailed error reports should be saved
 ERROR_OUTPUT_DIR = Path("tests/integration_tests_errors")
 
@@ -26,14 +22,12 @@ def compare_json_outputs(expected_path: str, output_path: str):
     Exits with status 1 on failure, 0 on success.
     
     If the test fails, a detailed error report is saved to the ERROR_OUTPUT_DIR.
-    If the failure is due to a geometry mask length mismatch, it creates a 
-    marker file for the GitHub workflow to detect and automatically fix.
     """
     expected_path = Path(expected_path)
     output_path = Path(output_path)
     
-    # Ensure any previous marker file is removed before running
-    Path(STALE_MARKER_FILE).unlink(missing_ok=True)
+    # NOTE: The logic to remove the old STALE_MARKER_FILE is removed 
+    # since that feature is no longer supported.
 
     # 1. Load files
     try:
@@ -57,29 +51,24 @@ def compare_json_outputs(expected_path: str, output_path: str):
 
         show_full_diff = True
         
-        # --- Enhanced Check for Array Length Mismatch (Targeted for geometry_mask_flat) ---
+        # --- Enhanced Check for Array Length Mismatch ---
+        # This check remains useful for debugging, as length mismatches in
+        # large arrays like geometry_mask_flat indicate a serious issue.
         if 'geometry_mask_flat' in expected and 'geometry_mask_flat' in output:
             expected_mask = expected['geometry_mask_flat']
             output_mask = output['geometry_mask_flat']
             
             if isinstance(expected_mask, list) and isinstance(output_mask, list) and len(expected_mask) != len(output_mask):
-                show_full_diff = False # Suppress the large diff
+                show_full_diff = False # Suppress the giant diff
                 
-                # --- CRITICAL: Create the marker file for self-healing ---
-                try:
-                    Path(STALE_MARKER_FILE).touch()
-                    error_output_content += "=========================================================================\n"
-                    error_output_content += f"⚠️ CRITICAL MISMATCH DETECTED: 'geometry_mask_flat' array length differs.\n"
-                    error_output_content += f"   Expected length: {len(expected_mask)}, Generated length: {len(output_mask)}\n"
-                    error_output_content += f"   {STALE_MARKER_FILE} created. A subsequent workflow step will attempt auto-fix.\n"
-                    error_output_content += "=========================================================================\n"
-                except Exception as e:
-                    error_output_content += f"Error creating marker file: {e}\n"
-                # -----------------------------------------------------------
-
-        # Print content to console (for immediate log visibility)
+                error_output_content += "=========================================================================\n"
+                error_output_content += f"⚠️ CRITICAL MISMATCH DETECTED: 'geometry_mask_flat' array length differs.\n"
+                error_output_content += f"   Expected length: {len(expected_mask)}, Generated length: {len(output_mask)}\n"
+                error_output_content += "   Full JSON diff suppressed due to array size difference.\n"
+                error_output_content += "=========================================================================\n"
+                
+        # Print initial error content
         print(error_output_content, end='')
-
 
         if show_full_diff:
             # Convert dicts to sorted, indented JSON strings for stable line-by-line diff
@@ -122,13 +111,13 @@ def compare_json_outputs(expected_path: str, output_path: str):
 
         # Clean up temporary output file before exiting on failure
         output_path.unlink(missing_ok=True)
-        sys.exit(1)
+        sys.exit(1) # Fail the CI job
     else:
         print(f'✅ INTEGRATION TEST PASSED: {expected_path.name} matches expected output.')
 
     # Clean up temporary output file on success
     output_path.unlink(missing_ok=True)
-    sys.exit(0)
+    sys.exit(0) # Pass the CI job
 
 
 if __name__ == "__main__":
@@ -138,5 +127,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     compare_json_outputs(args.expected_path, args.output_path)
+
 
 
