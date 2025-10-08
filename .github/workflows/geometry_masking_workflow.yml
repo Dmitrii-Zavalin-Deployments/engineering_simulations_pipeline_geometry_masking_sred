@@ -102,7 +102,7 @@ jobs:
 
           echo "--- Running test: test_cube (Expected Output: $EXPECTED_OUTPUT_PATH) ---"
 
-          RESOLUTION=0.25
+          RESOLUTION=0.5
           FLOW_REGION="internal"
 
           python3 src/gmsh_runner.py \
