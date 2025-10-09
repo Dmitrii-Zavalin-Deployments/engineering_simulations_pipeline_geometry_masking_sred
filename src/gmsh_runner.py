@@ -91,14 +91,14 @@ def extract_bounding_box_with_gmsh(step_path, resolution=None, flow_region="inte
 
         # Determine fluid volumes (for internal flow)
         fluid_volume_tags = []
-        if flow_region == "internal" and len(volumes) > 1:
-            # Heuristic: assume smallest volume(s) are fluid
-            sorted_volumes = sorted(volumes, key=lambda v: volume_bbox_volume(gmsh.model.getBoundingBox(*v)))
-            fluid_volume_tags = [sorted_volumes[0][1]]
-            print(f"Assuming volume tag(s) {fluid_volume_tags} as fluid region(s).")
-        elif flow_region == "internal":
-            # Only one volume — treat entire volume as fluid
-            fluid_volume_tags = [volumes[0][1]]
+        if flow_region == "internal":
+            if len(volumes) > 1:
+                sorted_volumes = sorted(volumes, key=lambda v: volume_bbox_volume(gmsh.model.getBoundingBox(*v)))
+                fluid_volume_tags = [sorted_volumes[0][1]]
+                print(f"Assuming volume tag(s) {fluid_volume_tags} as fluid region(s).")
+            else:
+                # Single volume → treat as solid, no fluid region
+                fluid_volume_tags = []
 
         mask = []
         for x_idx in range(nx):
