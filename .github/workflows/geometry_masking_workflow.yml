@@ -16,7 +16,7 @@ jobs:
       - name: 🐍 Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: 🐍 Install Python dependencies
         run: |
@@ -25,12 +25,12 @@ jobs:
 
       - name: 🧹 Run autoflake to remove unused imports
         run: |
-          autoflake --in-place --recursive --remove-unused-variables --remove-all-unused-imports .
-          
+          autoflake --in-place --recursive --remove-unused-variables --remove-all-unused-imports src
+
       - name: 💀 Run vulture to find dead code
         run: |
-          vulture --exclude .github,tests,data .
-          
+          vulture src || echo "⚠️ Vulture found unused code — review manually if needed"
+
       - name: 🚀 Commit autoflake changes
         env:
           GIT_USER_NAME: ${{ secrets.GIT_USER_NAME }}
@@ -39,8 +39,10 @@ jobs:
           git config --global user.name "${GIT_USER_NAME}"
           git config --global user.email "${GIT_USER_EMAIL}"
           git add .
-          git commit -m "🧹 Auto-clean: removed unused imports and variables" || echo "No changes to commit"
-          git push || echo "No changes to push"
+          git diff --cached --quiet || (
+            git commit -m "🧹 Auto-clean: removed unused imports and variables"
+            git push || echo "No changes to push"
+          )
 
   process_step_for_coordinates:
     needs: code_quality_check
@@ -59,7 +61,7 @@ jobs:
       - name: 🐍 Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: 🧱 Install system dependencies & Gmsh
         run: |
@@ -80,7 +82,7 @@ jobs:
         run: |
           gmsh -version || { echo "❌ Gmsh CLI not found"; exit 1; }
           python -c "import gmsh; gmsh.initialize(); gmsh.finalize(); print('✅ Gmsh Python bindings operational')" || { echo "❌ Gmsh Python bindings failed"; exit 1; }
-          
+
       # ----------------------------------------------------------------------
       # Integration Test 1: test_cube (HARD FAIL on mismatch)
       # ----------------------------------------------------------------------
@@ -152,7 +154,7 @@ jobs:
           python3 tests/helpers/compare_json.py "$EXPECTED_OUTPUT_PATH" "$TEMP_OUTPUT_FILE"
 
           echo "✅ Integration test completed for hollow_cylinder."
-      
+
       # ----------------------------------------------------------------------
       # Integration Test 3: cube_with_hole (HARD FAIL on mismatch)
       # ----------------------------------------------------------------------
@@ -267,7 +269,7 @@ jobs:
           echo "$(date '+%Y-%m-%d %H:%M:%S'): STEP processor triggered by '${{ github.actor }}' via '${{ github.event_name }}' event" >> trigger.txt
           git config --global user.name "${GIT_USER_NAME}"
           git config --global user.email "${GIT_USER_EMAIL}"
-          
+
           # Commit error reports and trigger log
           if [ -d "tests/integration_tests_errors" ]; then
             # Inject a unique identifier (Run ID) into every error report file.
@@ -280,10 +282,7 @@ jobs:
             git add --force tests/integration_tests_errors
             echo "⚠️ Added error reports for commit."
           fi
-          
+
           git add trigger.txt
           git commit -m "Log STEP processor trigger by ${{ github.actor }} via ${{ github.event_name }}" || echo "No new log or errors to commit"
           git push
-
-
-
