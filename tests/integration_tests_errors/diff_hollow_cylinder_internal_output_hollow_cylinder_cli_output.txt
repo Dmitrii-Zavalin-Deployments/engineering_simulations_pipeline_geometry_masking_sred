@@ -1,10 +1,9 @@
 ❌ INTEGRATION TEST FAILED: Output mismatch for hollow_cylinder_internal_output.json
 
 --- JSON UNIFIED DIFF (Expected vs Generated) ---
---- hollow_cylinder_internal_output.json+++ hollow_cylinder_cli_output.json@@ -1,9 +1,10 @@ {
--  "flat_mask": [
-+  "flattening_order": "x-major",
-+  "geometry_mask_flat": [
+--- hollow_cylinder_internal_output.json+++ hollow_cylinder_cli_output.json@@ -1,10 +1,10 @@ {
+   "flattening_order": "x-major",
+   "geometry_mask_flat": [
 +    1,
      0,
      0,
@@ -14,25 +13,7 @@
      0,
      1,
      1,
-@@ -12,14 +13,14 @@     1,
-     1,
-     0,
-+    1,
-     0,
-     0,
-+    1,
-+    1,
-     0,
-     0,
--    0,
--    0,
--    0,
--    0,
-+    1,
-     0,
-     1,
-     1,
-@@ -28,14 +29,14 @@     1,
+@@ -13,14 +13,14 @@     1,
      1,
      0,
 +    1,
@@ -50,7 +31,7 @@
      0,
      1,
      1,
-@@ -44,14 +45,14 @@     1,
+@@ -29,14 +29,14 @@     1,
      1,
      0,
 +    1,
@@ -68,7 +49,25 @@
      0,
      1,
      1,
-@@ -60,12 +61,11 @@     1,
+@@ -45,14 +45,14 @@     1,
+     1,
+     0,
++    1,
+     0,
+     0,
++    1,
++    1,
+     0,
+     0,
+-    0,
+-    0,
+-    0,
+-    0,
++    1,
+     0,
+     1,
+     1,
+@@ -61,10 +61,10 @@     1,
      1,
      0,
 +    1,
@@ -78,10 +77,8 @@
 -    0
 +    1
    ],
--  "flattening_order": "X-Major",
    "geometry_mask_shape": [
-     4,
      4,
 -------------------------------------------------
 
---- Commit Details: Run 18384928622 / Attempt 1 ---
+--- Commit Details: Run 18385080010 / Attempt 1 ---
