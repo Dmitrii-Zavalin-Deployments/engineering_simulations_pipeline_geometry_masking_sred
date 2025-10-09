@@ -2,7 +2,6 @@
 
 import gmsh
 import os
-from src.utils.gmsh_input_check import validate_step_has_volumes
 from src.utils.input_validation import load_resolution_profile
 from src.gmsh_core import initialize_gmsh_model, compute_bounding_box, volume_bbox_volume
 
@@ -20,7 +19,7 @@ def extract_geometry_mask(step_path, resolution=None, flow_region="internal", pa
 
     gmsh.initialize()
     try:
-        model = initialize_gmsh_model(step_path)
+        initialize_gmsh_model(step_path)
         volumes = gmsh.model.getEntities(3)
         if not volumes:
             raise ValueError("No volume entities found in STEP file.")
