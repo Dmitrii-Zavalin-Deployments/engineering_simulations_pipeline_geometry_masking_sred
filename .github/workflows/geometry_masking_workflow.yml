@@ -26,11 +26,11 @@ jobs:
       - name: 🧹 Run autoflake to remove unused imports
         run: |
           autoflake --in-place --recursive --remove-unused-variables --remove-all-unused-imports .
-
+          
       - name: 💀 Run vulture to find dead code
         run: |
           vulture --exclude .github,tests,data .
-
+          
       - name: 🚀 Commit autoflake changes
         env:
           GIT_USER_NAME: ${{ secrets.GIT_USER_NAME }}
@@ -48,12 +48,13 @@ jobs:
     env:
       PYTHONPATH: ${{ github.workspace }}
       ENABLE_RULE_DEBUG: true
+
     steps:
       - name: 🛎️ Checkout repository
         uses: actions/checkout@v3
         with:
           # Token is needed for the final commit/push of logs/error reports
-          token: ${{ secrets.GITHUB_TOKEN }} 
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 🐍 Set up Python
         uses: actions/setup-python@v4
@@ -79,13 +80,13 @@ jobs:
         run: |
           gmsh -version || { echo "❌ Gmsh CLI not found"; exit 1; }
           python -c "import gmsh; gmsh.initialize(); gmsh.finalize(); print('✅ Gmsh Python bindings operational')" || { echo "❌ Gmsh Python bindings failed"; exit 1; }
-
+          
       # ----------------------------------------------------------------------
       # Integration Test 1: test_cube (HARD FAIL on mismatch)
       # ----------------------------------------------------------------------
       - name: 🏃 Run Integration Test (test_cube)
         id: integration_test_cube
-        # Note: continue-on-error is removed. Failure here stops the workflow.
+        # Failure here stops the workflow.
         run: |
           STEP_FILE="tests/test_models/test_cube.step"
           EXPECTED_OUTPUT_PATH="tests/test_models/test_cube_output.json"
@@ -112,7 +113,7 @@ jobs:
             --output "$TEMP_OUTPUT_FILE"
 
           # compare_json.py exits 1 if files don't match, failing this step.
-          python3 tests/helpers/compare_json.py "$EXPECTED_OUTPUT_PATH" "$TEMP_OUTPUT_FILE"
+          python3 tests/compare_json.py "$EXPECTED_OUTPUT_PATH" "$TEMP_OUTPUT_FILE"
 
           echo "✅ Integration test completed for test_cube."
 
@@ -121,7 +122,7 @@ jobs:
       # ----------------------------------------------------------------------
       - name: 🏃 Run Integration Test (hollow_cylinder)
         id: integration_test_cylinder
-        # Note: continue-on-error is removed. Failure here stops the workflow.
+        # Failure here stops the workflow.
         run: |
           STEP_FILE="tests/test_models/hollow_cylinder.step"
           EXPECTED_OUTPUT_PATH="tests/test_models/hollow_cylinder_internal_output.json"
@@ -148,10 +149,46 @@ jobs:
             --output "$TEMP_OUTPUT_FILE"
 
           # compare_json.py exits 1 if files don't match, failing this step.
-          python3 tests/helpers/compare_json.py "$EXPECTED_OUTPUT_PATH" "$TEMP_OUTPUT_FILE"
+          python3 tests/compare_json.py "$EXPECTED_OUTPUT_PATH" "$TEMP_OUTPUT_FILE"
 
           echo "✅ Integration test completed for hollow_cylinder."
       
+      # ----------------------------------------------------------------------
+      # Integration Test 3: cube_with_hole (HARD FAIL on mismatch)
+      # ----------------------------------------------------------------------
+      - name: 🏃 Run Integration Test (cube_with_hole)
+        id: integration_test_cube_with_hole
+        # Failure here stops the workflow.
+        run: |
+          STEP_FILE="tests/test_models/cube_with_hole.step"
+          EXPECTED_OUTPUT_PATH="tests/test_models/cube_with_hole_internal_output.json"
+          TEMP_OUTPUT_FILE="tests/test_models/cube_with_hole_cli_output.json"
+
+          if [ ! -f "$STEP_FILE" ]; then
+            echo "❌ Fatal Error: STEP file ($STEP_FILE) not found. Cannot run integration test."
+            exit 1
+          fi
+          if [ ! -f "$EXPECTED_OUTPUT_PATH" ]; then
+            echo "❌ Fatal Error: Expected Output file ($EXPECTED_OUTPUT_PATH) not found. Cannot run integration test."
+            exit 1
+          fi
+
+          echo "--- Running test: cube_with_hole (Expected Output: $EXPECTED_OUTPUT_PATH) ---"
+
+          RESOLUTION=0.5
+          FLOW_REGION="internal"
+
+          python3 src/gmsh_runner.py \
+            --step "$STEP_FILE" \
+            --resolution "$RESOLUTION" \
+            --flow_region "$FLOW_REGION" \
+            --output "$TEMP_OUTPUT_FILE"
+
+          # compare_json.py exits 1 if files don't match, failing this step.
+          python3 tests/compare_json.py "$EXPECTED_OUTPUT_PATH" "$TEMP_OUTPUT_FILE"
+
+          echo "✅ Integration test completed for cube_with_hole."
+
       - name: ☁️ Download & normalize STEP file
         env:
           APP_KEY: ${{ secrets.APP_KEY }}
@@ -231,11 +268,7 @@ jobs:
           git config --global user.name "${GIT_USER_NAME}"
           git config --global user.email "${GIT_USER_EMAIL}"
           
-          # We have explicitly removed the 'git pull --rebase' here. 
-          # The simple push is safer for committing non-conflicting artifacts 
-          # generated by failing tests.
-          
-          # --- Commit error reports and trigger log ---
+          # Commit error reports and trigger log
           if [ -d "tests/integration_tests_errors" ]; then
             git add tests/integration_tests_errors
             echo "⚠️ Added error reports for commit."
