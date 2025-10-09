@@ -50,6 +50,7 @@ def extract_geometry_mask(step_path, resolution=None, flow_region="internal", pa
 
         fluid_volume_tags = []
         fluid_is_inside = False
+        fluid_bbox = None
 
         if flow_region == "internal":
             if len(volumes) > 1:
@@ -62,6 +63,8 @@ def extract_geometry_mask(step_path, resolution=None, flow_region="internal", pa
                 total_bbox_volume = (max_x - min_x) * (max_y - min_y) * (max_z - min_z)
                 fluid_is_inside = bbox_volume < 0.5 * total_bbox_volume
 
+            fluid_bbox = gmsh.model.getBoundingBox(3, fluid_volume_tags[0])
+
         mask = []
         for x_idx in range(nx):
             px = min_x + (x_idx + 0.5) * resolution
@@ -73,7 +76,18 @@ def extract_geometry_mask(step_path, resolution=None, flow_region="internal", pa
 
                     if flow_region == "internal":
                         is_inside = any(gmsh.model.isInside(3, tag, point) for tag in fluid_volume_tags)
-                        value = 1 if is_inside and fluid_is_inside else 0 if is_inside else 1
+                        if is_inside and fluid_is_inside:
+                            fx_min, fy_min, fz_min, fx_max, fy_max, fz_max = fluid_bbox
+                            in_fluid_bbox = (
+                                fx_min <= px <= fx_max and
+                                fy_min <= py <= fy_max and
+                                fz_min <= pz <= fz_max
+                            )
+                            value = 1 if in_fluid_bbox else 0
+                        elif is_inside:
+                            value = 0
+                        else:
+                            value = 1
                     elif flow_region == "external":
                         is_inside_any = any(gmsh.model.isInside(3, tag, point) for _, tag in volumes)
                         value = 1 if not is_inside_any else 0

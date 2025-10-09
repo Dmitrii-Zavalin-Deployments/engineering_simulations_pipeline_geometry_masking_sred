@@ -32,6 +32,15 @@ def volume_bbox_volume(bbox):
     min_x, min_y, min_z, max_x, max_y, max_z = bbox
     return (max_x - min_x) * (max_y - min_y) * (max_z - min_z)
 
+def is_point_inside_bbox(px, py, pz, bbox):
+    """
+    Checks whether a point (px, py, pz) is inside the given bounding box.
+    """
+    min_x, min_y, min_z, max_x, max_y, max_z = bbox
+    return (min_x <= px <= max_x and
+            min_y <= py <= max_y and
+            min_z <= pz <= max_z)
+
 # Future helpers can be added here:
 # def sort_volumes_by_size(volumes): ...
 # def probe_center_point(bbox): ...
