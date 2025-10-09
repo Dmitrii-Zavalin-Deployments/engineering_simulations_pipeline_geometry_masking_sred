@@ -1,282 +1,289 @@
 name: STEP Spatial Metadata Processor
 
 on:
-  push:
-    branches:
-      - "**"
-  workflow_dispatch:
+  push:
+    branches:
+      - "**"
+  workflow_dispatch:
 
 jobs:
-  code_quality_check:
-    runs-on: ubuntu-latest
-    steps:
-      - name: 🛎️ Checkout repository
-        uses: actions/checkout@v3
+  code_quality_check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🛎️ Checkout repository
+        uses: actions/checkout@v3
 
-      - name: 🐍 Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
 
-      - name: 🐍 Install Python dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+      - name: 🐍 Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-      - name: 🧹 Run autoflake to remove unused imports
-        run: |
-          autoflake --in-place --recursive --remove-unused-variables --remove-all-unused-imports .
-          
-      - name: 💀 Run vulture to find dead code
-        run: |
-          vulture --exclude .github,tests,data .
-          
-      - name: 🚀 Commit autoflake changes
-        env:
-          GIT_USER_NAME: ${{ secrets.GIT_USER_NAME }}
-          GIT_USER_EMAIL: ${{ secrets.GIT_USER_EMAIL }}
-        run: |
-          git config --global user.name "${GIT_USER_NAME}"
-          git config --global user.email "${GIT_USER_EMAIL}"
-          git add .
-          git commit -m "🧹 Auto-clean: removed unused imports and variables" || echo "No changes to commit"
-          git push || echo "No changes to push"
+      - name: 🧹 Run autoflake to remove unused imports
+        run: |
+          autoflake --in-place --recursive --remove-unused-variables --remove-all-unused-imports .
+          
+      - name: 💀 Run vulture to find dead code
+        run: |
+          vulture --exclude .github,tests,data .
+          
+      - name: 🚀 Commit autoflake changes
+        env:
+          GIT_USER_NAME: ${{ secrets.GIT_USER_NAME }}
+          GIT_USER_EMAIL: ${{ secrets.GIT_USER_EMAIL }}
+        run: |
+          git config --global user.name "${GIT_USER_NAME}"
+          git config --global user.email "${GIT_USER_EMAIL}"
+          git add .
+          git commit -m "🧹 Auto-clean: removed unused imports and variables" || echo "No changes to commit"
+          git push || echo "No changes to push"
 
-  process_step_for_coordinates:
-    needs: code_quality_check
-    runs-on: ubuntu-latest
-    env:
-      PYTHONPATH: ${{ github.workspace }}
-      ENABLE_RULE_DEBUG: true
+  process_step_for_coordinates:
+    needs: code_quality_check
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+      ENABLE_RULE_DEBUG: true
 
-    steps:
-      - name: 🛎️ Checkout repository
-        uses: actions/checkout@v3
-        with:
-          # Token is needed for the final commit/push of logs/error reports
-          token: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: 🛎️ Checkout repository
+        uses: actions/checkout@v3
+        with:
+          # Token is needed for the final commit/push of logs/error reports
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 🐍 Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
 
-      - name: 🧱 Install system dependencies & Gmsh
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libglu1-mesa-dev \
-            libfreetype6-dev \
-            libfontconfig1-dev \
-            libxrender1 \
-            gmsh
+      - name: 🧱 Install system dependencies & Gmsh
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libglu1-mesa-dev \
+            libfreetype6-dev \
+            libfontconfig1-dev \
+            libxrender1 \
+            gmsh
 
-      - name: 🐍 Install Python dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+      - name: 🐍 Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-      - name: ✅ Confirm Gmsh & Python bindings
-        run: |
-          gmsh -version || { echo "❌ Gmsh CLI not found"; exit 1; }
-          python -c "import gmsh; gmsh.initialize(); gmsh.finalize(); print('✅ Gmsh Python bindings operational')" || { echo "❌ Gmsh Python bindings failed"; exit 1; }
-          
-      # ----------------------------------------------------------------------
-      # Integration Test 1: test_cube (HARD FAIL on mismatch)
-      # ----------------------------------------------------------------------
-      - name: 🏃 Run Integration Test (test_cube)
-        id: integration_test_cube
-        # Failure here stops the workflow.
-        run: |
-          STEP_FILE="tests/test_models/test_cube.step"
-          EXPECTED_OUTPUT_PATH="tests/test_models/test_cube_output.json"
-          TEMP_OUTPUT_FILE="tests/test_models/test_cube_cli_output.json"
+      - name: ✅ Confirm Gmsh & Python bindings
+        run: |
+          gmsh -version || { echo "❌ Gmsh CLI not found"; exit 1; }
+          python -c "import gmsh; gmsh.initialize(); gmsh.finalize(); print('✅ Gmsh Python bindings operational')" || { echo "❌ Gmsh Python bindings failed"; exit 1; }
+          
+      # ----------------------------------------------------------------------
+      # Integration Test 1: test_cube (HARD FAIL on mismatch)
+      # ----------------------------------------------------------------------
+      - name: 🏃 Run Integration Test (test_cube)
+        id: integration_test_cube
+        # Failure here stops the workflow.
+        run: |
+          STEP_FILE="tests/test_models/test_cube.step"
+          EXPECTED_OUTPUT_PATH="tests/test_models/test_cube_output.json"
+          TEMP_OUTPUT_FILE="tests/test_models/test_cube_cli_output.json"
 
-          if [ ! -f "$STEP_FILE" ]; then
-            echo "❌ Fatal Error: STEP file ($STEP_FILE) not found. Cannot run integration test."
-            exit 1
-          fi
-          if [ ! -f "$EXPECTED_OUTPUT_PATH" ]; then
-            echo "❌ Fatal Error: Expected Output file ($EXPECTED_OUTPUT_PATH) not found. Cannot run integration test."
-            exit 1
-          fi
+          if [ ! -f "$STEP_FILE" ]; then
+            echo "❌ Fatal Error: STEP file ($STEP_FILE) not found. Cannot run integration test."
+            exit 1
+          fi
+          if [ ! -f "$EXPECTED_OUTPUT_PATH" ]; then
+            echo "❌ Fatal Error: Expected Output file ($EXPECTED_OUTPUT_PATH) not found. Cannot run integration test."
+            exit 1
+          fi
 
-          echo "--- Running test: test_cube (Expected Output: $EXPECTED_OUTPUT_PATH) ---"
+          echo "--- Running test: test_cube (Expected Output: $EXPECTED_OUTPUT_PATH) ---"
 
-          RESOLUTION=0.5
-          FLOW_REGION="internal"
+          RESOLUTION=0.5
+          FLOW_REGION="internal"
 
-          python3 src/gmsh_runner.py \
-            --step "$STEP_FILE" \
-            --resolution "$RESOLUTION" \
-            --flow_region "$FLOW_REGION" \
-            --output "$TEMP_OUTPUT_FILE"
+          python3 src/gmsh_runner.py \
+            --step "$STEP_FILE" \
+            --resolution "$RESOLUTION" \
+            --flow_region "$FLOW_REGION" \
+            --output "$TEMP_OUTPUT_FILE"
 
-          # compare_json.py exits 1 if files don't match, failing this step.
-          python3 tests/helpers/compare_json.py "$EXPECTED_OUTPUT_PATH" "$TEMP_OUTPUT_FILE"
+          # compare_json.py exits 1 if files don't match, failing this step.
+          python3 tests/helpers/compare_json.py "$EXPECTED_OUTPUT_PATH" "$TEMP_OUTPUT_FILE"
 
-          echo "✅ Integration test completed for test_cube."
+          echo "✅ Integration test completed for test_cube."
 
-      # ----------------------------------------------------------------------
-      # Integration Test 2: hollow_cylinder (HARD FAIL on mismatch)
-      # ----------------------------------------------------------------------
-      - name: 🏃 Run Integration Test (hollow_cylinder)
-        id: integration_test_cylinder
-        # Failure here stops the workflow.
-        run: |
-          STEP_FILE="tests/test_models/hollow_cylinder.step"
-          EXPECTED_OUTPUT_PATH="tests/test_models/hollow_cylinder_internal_output.json"
-          TEMP_OUTPUT_FILE="tests/test_models/hollow_cylinder_cli_output.json"
+      # ----------------------------------------------------------------------
+      # Integration Test 2: hollow_cylinder (HARD FAIL on mismatch)
+      # ----------------------------------------------------------------------
+      - name: 🏃 Run Integration Test (hollow_cylinder)
+        id: integration_test_cylinder
+        # Failure here stops the workflow.
+        run: |
+          STEP_FILE="tests/test_models/hollow_cylinder.step"
+          EXPECTED_OUTPUT_PATH="tests/test_models/hollow_cylinder_internal_output.json"
+          TEMP_OUTPUT_FILE="tests/test_models/hollow_cylinder_cli_output.json"
 
-          if [ ! -f "$STEP_FILE" ]; then
-            echo "❌ Fatal Error: STEP file ($STEP_FILE) not found. Cannot run integration test."
-            exit 1
-          fi
-          if [ ! -f "$EXPECTED_OUTPUT_PATH" ]; then
-            echo "❌ Fatal Error: Expected Output file ($EXPECTED_OUTPUT_PATH) not found. Cannot run integration test."
-            exit 1
-          fi
+          if [ ! -f "$STEP_FILE" ]; then
+            echo "❌ Fatal Error: STEP file ($STEP_FILE) not found. Cannot run integration test."
+            exit 1
+          fi
+          if [ ! -f "$EXPECTED_OUTPUT_PATH" ]; then
+            echo "❌ Fatal Error: Expected Output file ($EXPECTED_OUTPUT_PATH) not found. Cannot run integration test."
+            exit 1
+          fi
 
-          echo "--- Running test: hollow_cylinder (Expected Output: $EXPECTED_OUTPUT_PATH) ---"
+          echo "--- Running test: hollow_cylinder (Expected Output: $EXPECTED_OUTPUT_PATH) ---"
 
-          RESOLUTION=0.5
-          FLOW_REGION="internal"
+          RESOLUTION=0.5
+          FLOW_REGION="internal"
 
-          python3 src/gmsh_runner.py \
-            --step "$STEP_FILE" \
-            --resolution "$RESOLUTION" \
-            --flow_region "$FLOW_REGION" \
-            --output "$TEMP_OUTPUT_FILE"
+          python3 src/gmsh_runner.py \
+            --step "$STEP_FILE" \
+            --resolution "$RESOLUTION" \
+            --flow_region "$FLOW_REGION" \
+            --output "$TEMP_OUTPUT_FILE"
 
-          # compare_json.py exits 1 if files don't match, failing this step.
-          python3 tests/helpers/compare_json.py "$EXPECTED_OUTPUT_PATH" "$TEMP_OUTPUT_FILE"
+          # compare_json.py exits 1 if files don't match, failing this step.
+          python3 tests/helpers/compare_json.py "$EXPECTED_OUTPUT_PATH" "$TEMP_OUTPUT_FILE"
 
-          echo "✅ Integration test completed for hollow_cylinder."
-      
-      # ----------------------------------------------------------------------
-      # Integration Test 3: cube_with_hole (HARD FAIL on mismatch)
-      # ----------------------------------------------------------------------
-      - name: 🏃 Run Integration Test (cube_with_hole)
-        id: integration_test_cube_with_hole
-        # Failure here stops the workflow.
-        run: |
-          STEP_FILE="tests/test_models/cube_with_hole.step"
-          EXPECTED_OUTPUT_PATH="tests/test_models/cube_with_hole_internal_output.json"
-          TEMP_OUTPUT_FILE="tests/test_models/cube_with_hole_cli_output.json"
+          echo "✅ Integration test completed for hollow_cylinder."
+      
+      # ----------------------------------------------------------------------
+      # Integration Test 3: cube_with_hole (HARD FAIL on mismatch)
+      # ----------------------------------------------------------------------
+      - name: 🏃 Run Integration Test (cube_with_hole)
+        id: integration_test_cube_with_hole
+        # Failure here stops the workflow.
+        run: |
+          STEP_FILE="tests/test_models/cube_with_hole.step"
+          EXPECTED_OUTPUT_PATH="tests/test_models/cube_with_hole_internal_output.json"
+          TEMP_OUTPUT_FILE="tests/test_models/cube_with_hole_cli_output.json"
 
-          if [ ! -f "$STEP_FILE" ]; then
-            echo "❌ Fatal Error: STEP file ($STEP_FILE) not found. Cannot run integration test."
-            exit 1
-          fi
-          if [ ! -f "$EXPECTED_OUTPUT_PATH" ]; then
-            echo "❌ Fatal Error: Expected Output file ($EXPECTED_OUTPUT_PATH) not found. Cannot run integration test."
-            exit 1
-          fi
+          if [ ! -f "$STEP_FILE" ]; then
+            echo "❌ Fatal Error: STEP file ($STEP_FILE) not found. Cannot run integration test."
+            exit 1
+          fi
+          if [ ! -f "$EXPECTED_OUTPUT_PATH" ]; then
+            echo "❌ Fatal Error: Expected Output file ($EXPECTED_OUTPUT_PATH) not found. Cannot run integration test."
+            exit 1
+          fi
 
-          echo "--- Running test: cube_with_hole (Expected Output: $EXPECTED_OUTPUT_PATH) ---"
+          echo "--- Running test: cube_with_hole (Expected Output: $EXPECTED_OUTPUT_PATH) ---"
 
-          RESOLUTION=0.5
-          FLOW_REGION="internal"
+          RESOLUTION=0.5
+          FLOW_REGION="internal"
 
-          python3 src/gmsh_runner.py \
-            --step "$STEP_FILE" \
-            --resolution "$RESOLUTION" \
-            --flow_region "$FLOW_REGION" \
-            --output "$TEMP_OUTPUT_FILE"
+          python3 src/gmsh_runner.py \
+            --step "$STEP_FILE" \
+            --resolution "$RESOLUTION" \
+            --flow_region "$FLOW_REGION" \
+            --output "$TEMP_OUTPUT_FILE"
 
-          # compare_json.py exits 1 if files don't match, failing this step.
-          python3 tests/helpers/compare_json.py "$EXPECTED_OUTPUT_PATH" "$TEMP_OUTPUT_FILE"
+          # compare_json.py exits 1 if files don't match, failing this step.
+          python3 tests/helpers/compare_json.py "$EXPECTED_OUTPUT_PATH" "$TEMP_OUTPUT_FILE"
 
-          echo "✅ Integration test completed for cube_with_hole."
+          echo "✅ Integration test completed for cube_with_hole."
 
-      - name: ☁️ Download & normalize STEP file
-        env:
-          APP_KEY: ${{ secrets.APP_KEY }}
-          APP_SECRET: ${{ secrets.APP_SECRET }}
-          REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
-        run: |
-          chmod +x src/download_from_dropbox.sh
-          src/download_from_dropbox.sh
+      - name: ☁️ Download & normalize STEP file
+        env:
+          APP_KEY: ${{ secrets.APP_KEY }}
+          APP_SECRET: ${{ secrets.APP_SECRET }}
+          REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
+        run: |
+          chmod +x src/download_from_dropbox.sh
+          src/download_from_dropbox.sh
 
-          STEP_FILES=$(find data/testing-input-output -maxdepth 1 -type f -name "*.step")
-          COUNT=$(echo "$STEP_FILES" | wc -l)
-          if [ "$COUNT" -eq 0 ]; then
-            echo "❌ No STEP file found. Cannot proceed."
-            exit 1
-          elif [ "$COUNT" -gt 1 ]; then
-            echo "⚠️ Multiple STEP files found. Normalizing..."
-            STEP_FILE=$(echo "$STEP_FILES" | head -n 1)
-            mv "$STEP_FILE" data/testing-input-output/input.step
-            echo "✅ Normalized STEP file to input.step."
-          else
-            STEP_FILE=$(echo "$STEP_FILES")
-            if [ "$STEP_FILE" != "data/testing-input-output/input.step" ]; then
-              mv "$STEP_FILE" data/testing-input-output/input.step
-              echo "✅ Renamed $STEP_FILE to input.step"
-            else
-              echo "ℹ️ STEP file is already named input.step. No renaming needed."
-            fi
-          fi
+          STEP_FILES=$(find data/testing-input-output -maxdepth 1 -type f -name "*.step")
+          COUNT=$(echo "$STEP_FILES" | wc -l)
+          if [ "$COUNT" -eq 0 ]; then
+            echo "❌ No STEP file found. Cannot proceed."
+            exit 1
+          elif [ "$COUNT" -gt 1 ]; then
+            echo "⚠️ Multiple STEP files found. Normalizing..."
+            STEP_FILE=$(echo "$STEP_FILES" | head -n 1)
+            mv "$STEP_FILE" data/testing-input-output/input.step
+            echo "✅ Normalized STEP file to input.step."
+          else
+            STEP_FILE=$(echo "$STEP_FILES")
+            if [ "$STEP_FILE" != "data/testing-input-output/input.step" ]; then
+              mv "$STEP_FILE" data/testing-input-output/input.step
+              echo "✅ Renamed $STEP_FILE to input.step"
+            else
+              echo "ℹ️ STEP file is already named input.step. No renaming needed."
+            fi
+          fi
 
-      - name: 🧠 Extract config & run Gmsh
-        run: |
-          resolution=$(python -c "import json; print(json.load(open('data/testing-input-output/flow_data.json'))['model_properties']['default_resolution'])")
-          flow_region=$(python -c "import json; print(json.load(open('data/testing-input-output/flow_data.json'))['model_properties']['flow_region'])")
+      - name: 🧠 Extract config & run Gmsh
+        run: |
+          resolution=$(python -c "import json; print(json.load(open('data/testing-input-output/flow_data.json'))['model_properties']['default_resolution'])")
+          flow_region=$(python -c "import json; print(json.load(open('data/testing-input-output/flow_data.json'))['model_properties']['flow_region'])")
 
-          python3 src/gmsh_runner.py \
-            --step data/testing-input-output/input.step \
-            --resolution "$resolution" \
-            --flow_region "$flow_region" \
-            --output data/testing-input-output/geometry_masking_gmsh.json
+          python3 src/gmsh_runner.py \
+            --step data/testing-input-output/input.step \
+            --resolution "$resolution" \
+            --flow_region "$flow_region" \
+            --output data/testing-input-output/geometry_masking_gmsh.json
 
-      - name: 🔍 Validate output JSON against schema
-        run: |
-          python -c "
-          import json, jsonschema
-          from pathlib import Path
-          output_path = Path('data/testing-input-output/geometry_masking_gmsh.json')
-          if not output_path.exists():
-            raise FileNotFoundError(f'Schema validation failed — file not found: {output_path}')
-          with open('schemas/domain_schema.json') as s, open(output_path) as d:
-            schema = json.load(s)
-            data = json.load(d)
-            jsonschema.validate(instance=data, schema=schema)
-          "
-          echo "✅ Output schema validated"
+      - name: 🔍 Validate output JSON against schema
+        run: |
+          python -c "
+          import json, jsonschema
+          from pathlib import Path
+          output_path = Path('data/testing-input-output/geometry_masking_gmsh.json')
+          if not output_path.exists():
+            raise FileNotFoundError(f'Schema validation failed — file not found: {output_path}')
+          with open('schemas/domain_schema.json') as s, open(output_path) as d:
+            schema = json.load(s)
+            data = json.load(d)
+            jsonschema.validate(instance=data, schema=schema)
+          "
+          echo "✅ Output schema validated"
 
-      - name: 🧪 Run Unit Tests with Coverage
-        run: |
-          pytest --cov=src --cov-report=term-missing
-          echo "✅ Unit tests and code coverage check completed."
+      - name: 🧪 Run Unit Tests with Coverage
+        run: |
+          pytest --cov=src --cov-report=term-missing
+          echo "✅ Unit tests and code coverage check completed."
 
-      - name: ☁️ Upload outputs to Dropbox
-        env:
-          APP_KEY: ${{ secrets.APP_KEY }}
-          APP_SECRET: ${{ secrets.APP_SECRET }}
-          REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
-        run: |
-          chmod +x src/upload_to_dropbox.sh
-          src/upload_to_dropbox.sh
+      - name: ☁️ Upload outputs to Dropbox
+        env:
+          APP_KEY: ${{ secrets.APP_KEY }}
+          APP_SECRET: ${{ secrets.APP_SECRET }}
+          REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
+        run: |
+          chmod +x src/download_from_dropbox.sh
+          src/upload_to_dropbox.sh
 
-      - name: 📝 Log trigger & push
-        if: always() # Run even if previous steps failed to ensure log and error reports are committed
-        env:
-          GIT_USER_NAME: ${{ secrets.GIT_USER_NAME }}
-          GIT_USER_EMAIL: ${{ secrets.GIT_USER_EMAIL }}
-        run: |
-          echo "$(date '+%Y-%m-%d %H:%M:%S'): STEP processor triggered by '${{ github.actor }}' via '${{ github.event_name }}' event" >> trigger.txt
-          git config --global user.name "${GIT_USER_NAME}"
-          git config --global user.email "${GIT_USER_EMAIL}"
-          
-          # Commit error reports and trigger log
-          if [ -d "tests/integration_tests_errors" ]; then
-            git add --force tests/integration_tests_errors
-            echo "⚠️ Added error reports for commit."
-          fi
-          
-          git add trigger.txt
-          git commit -m "Log STEP processor trigger by ${{ github.actor }} via ${{ github.event_name }}" || echo "No new log or errors to commit"
-          git push
+      - name: 📝 Log trigger & push
+        if: always() # Run even if previous steps failed to ensure log and error reports are committed
+        env:
+          GIT_USER_NAME: ${{ secrets.GIT_USER_NAME }}
+          GIT_USER_EMAIL: ${{ secrets.GIT_USER_EMAIL }}
+        run: |
+          echo "$(date '+%Y-%m-%d %H:%M:%S'): STEP processor triggered by '${{ github.actor }}' via '${{ github.event_name }}' event" >> trigger.txt
+          git config --global user.name "${GIT_USER_NAME}"
+          git config --global user.email "${GIT_USER_EMAIL}"
+          
+          # Commit error reports and trigger log
+          if [ -d "tests/integration_tests_errors" ]; then
+            # Inject a unique identifier (Run ID) into every error report file.
+            # This forces Git to see the file as 'changed' even if the core error message is identical.
+            find tests/integration_tests_errors -type f -print0 | while IFS= read -r -d $'\0' file; do
+              echo -e "\n--- Commit Details: Run ${{ github.run_id }} / Attempt ${{ github.run_attempt }} ---" >> "$file"
+            done
+
+            # The --force flag is used to override .gitignore if necessary.
+            git add --force tests/integration_tests_errors
+            echo "⚠️ Added error reports for commit."
+          fi
+          
+          git add trigger.txt
+          git commit -m "Log STEP processor trigger by ${{ github.actor }} via ${{ github.event_name }}" || echo "No new log or errors to commit"
+          git push
 
 
 
