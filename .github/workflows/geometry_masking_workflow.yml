@@ -113,7 +113,7 @@ jobs:
             --output "$TEMP_OUTPUT_FILE"
 
           # compare_json.py exits 1 if files don't match, failing this step.
-          python3 tests/compare_json.py "$EXPECTED_OUTPUT_PATH" "$TEMP_OUTPUT_FILE"
+          python3 tests/helpers/compare_json.py "$EXPECTED_OUTPUT_PATH" "$TEMP_OUTPUT_FILE"
 
           echo "✅ Integration test completed for test_cube."
 
@@ -149,7 +149,7 @@ jobs:
             --output "$TEMP_OUTPUT_FILE"
 
           # compare_json.py exits 1 if files don't match, failing this step.
-          python3 tests/compare_json.py "$EXPECTED_OUTPUT_PATH" "$TEMP_OUTPUT_FILE"
+          python3 tests/helpers/compare_json.py "$EXPECTED_OUTPUT_PATH" "$TEMP_OUTPUT_FILE"
 
           echo "✅ Integration test completed for hollow_cylinder."
       
@@ -185,7 +185,7 @@ jobs:
             --output "$TEMP_OUTPUT_FILE"
 
           # compare_json.py exits 1 if files don't match, failing this step.
-          python3 tests/compare_json.py "$EXPECTED_OUTPUT_PATH" "$TEMP_OUTPUT_FILE"
+          python3 tests/helpers/compare_json.py "$EXPECTED_OUTPUT_PATH" "$TEMP_OUTPUT_FILE"
 
           echo "✅ Integration test completed for cube_with_hole."
 
