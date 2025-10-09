@@ -11,7 +11,6 @@ except ImportError:
 
 import json
 import os
-# Removed unused numpy import
 
 from src.utils.gmsh_input_check import validate_step_has_volumes
 from src.utils.input_validation import load_resolution_profile
@@ -87,7 +86,7 @@ def extract_bounding_box_with_gmsh(step_path, resolution=None, flow_region="inte
                 f"Update 'default_resolution' to at least {safe_resolution_mm:.2f} mm."
             )
             
-        # --- FIX: Voxel loop now uses X-Major flattening order (X slowest, Z fastest) ---
+        # FIX: Voxel loop now uses X-Major flattening order (X slowest, Z fastest)
         mask = []
         
         for x_idx in range(nx): # X-index slowest
@@ -97,14 +96,11 @@ def extract_bounding_box_with_gmsh(step_path, resolution=None, flow_region="inte
                 for z_idx in range(nz): # Z-index fastest
                     pz = min_z + (z_idx + 0.5) * resolution
                     
-                    # Geometric Check (Reverted to general, non-hardcoded logic)
                     inside = gmsh.model.isInside(3, entity_tag, [px, py, pz])
                     
                     if flow_region == "internal":
-                        # General logic: Assume the volume entity IS the fluid region (e.g., cube)
-                        # NOTE: This fails for the hollow cylinder, which requires a geometric check
-                        # that cannot be implemented without hardcoding or further Gmsh modification.
-                        value = 1 if inside else 0 
+                        # Logic: 0 if inside the solid (solid wall/body), 1 if outside the solid (fluid void)
+                        value = 0 if inside else 1
                     elif flow_region == "external":
                         # For external, fluid is outside the solid geometry
                         value = 1 if not inside else 0
