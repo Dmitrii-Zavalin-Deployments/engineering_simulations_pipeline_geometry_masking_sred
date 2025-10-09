@@ -37,15 +37,18 @@ def extract_bounding_box_with_gmsh(step_path, resolution=None, flow_region="inte
 
         volumes = gmsh.model.getEntities(3)
         print(f"Found {len(volumes)} volume entities.")
-        for dim, tag in volumes:
-            bbox = gmsh.model.getBoundingBox(dim, tag)
-            print(f"Volume tag {tag} → Bounding box: {bbox}")
-
         if not volumes:
             raise ValueError("No volume entities found in STEP file.")
-        entity_tag = volumes[0][1]
 
-        min_x, min_y, min_z, max_x, max_y, max_z = gmsh.model.getBoundingBox(3, entity_tag)
+        # Compute global bounding box
+        all_bboxes = [gmsh.model.getBoundingBox(dim, tag) for dim, tag in volumes]
+        min_x = min(b[0] for b in all_bboxes)
+        min_y = min(b[1] for b in all_bboxes)
+        min_z = min(b[2] for b in all_bboxes)
+        max_x = max(b[3] for b in all_bboxes)
+        max_y = max(b[4] for b in all_bboxes)
+        max_z = max(b[5] for b in all_bboxes)
+
         dim_x = max_x - min_x
         dim_y = max_y - min_y
         dim_z = max_z - min_z
@@ -85,52 +88,55 @@ def extract_bounding_box_with_gmsh(step_path, resolution=None, flow_region="inte
                 f"Voxel grid too large: {total_voxels} exceeds safe limit of {max_voxels}.\n"
                 f"Update 'default_resolution' to at least {safe_resolution_mm:.2f} mm."
             )
-            
-        # FIX: Voxel loop now uses X-Major flattening order (X slowest, Z fastest)
+
+        # Determine fluid volumes (for internal flow)
+        fluid_volume_tags = []
+        if flow_region == "internal" and len(volumes) > 1:
+            # Heuristic: assume smallest volume(s) are fluid
+            sorted_volumes = sorted(volumes, key=lambda v: volume_bbox_volume(gmsh.model.getBoundingBox(*v)))
+            fluid_volume_tags = [sorted_volumes[0][1]]
+            print(f"Assuming volume tag(s) {fluid_volume_tags} as fluid region(s).")
+        elif flow_region == "internal":
+            # Only one volume — treat entire volume as fluid
+            fluid_volume_tags = [volumes[0][1]]
+
         mask = []
-        
-        for x_idx in range(nx): # X-index slowest
+        for x_idx in range(nx):
             px = min_x + (x_idx + 0.5) * resolution
-            for y_idx in range(ny): # Y-index middle
+            for y_idx in range(ny):
                 py = min_y + (y_idx + 0.5) * resolution
-                for z_idx in range(nz): # Z-index fastest
+                for z_idx in range(nz):
                     pz = min_z + (z_idx + 0.5) * resolution
-                    
-                    inside = gmsh.model.isInside(3, entity_tag, [px, py, pz])
-                    
+                    point = [px, py, pz]
+
                     if flow_region == "internal":
-                        # Logic: 0 if inside the solid (solid wall/body), 1 if outside the solid (fluid void)
-                        value = 0 if inside else 1
+                        is_fluid = any(gmsh.model.isInside(3, tag, point) for tag in fluid_volume_tags)
+                        value = 1 if is_fluid else 0
                     elif flow_region == "external":
-                        # For external, fluid is outside the solid geometry
-                        value = 1 if not inside else 0
+                        is_inside_any = any(gmsh.model.isInside(3, tag, point) for _, tag in volumes)
+                        value = 1 if not is_inside_any else 0
                     else:
                         raise ValueError(f"Unsupported flow_region: {flow_region}")
 
                     mask.append(value)
-        # --- End of X-Major (X-Y-Z) Voxel Loop ---
-
 
         fluid_count = sum(mask)
         solid_count = len(mask) - fluid_count
         print(f"Mask summary → Fluid voxels: {fluid_count}, Solid voxels: {solid_count}")
 
         print("Sample voxel classifications (X-Major Indexing):")
-        # Sample points across the X-Major mask
-        sample_indices = [0, nx*ny*nz // 4, nx*ny*nz // 2, nx*ny*nz*3 // 4, nx*ny*nz - 1]
+        sample_indices = [0, total_voxels // 4, total_voxels // 2, 3 * total_voxels // 4, total_voxels - 1]
         for i in [idx for idx in sample_indices if idx < len(mask)]:
-            # Convert flat index (i) back to X-Y-Z indices based on X-Major (X slowest, Z fastest)
             x_idx = i // (ny * nz)
             remainder = i % (ny * nz)
             y_idx = remainder // nz
             z_idx = remainder % nz
-            
             px = min_x + (x_idx + 0.5) * resolution
             py = min_y + (y_idx + 0.5) * resolution
             pz = min_z + (z_idx + 0.5) * resolution
             label = "fluid" if mask[i] == 1 else "solid"
             print(f"Voxel ({x_idx},{y_idx},{z_idx}) at ({px:.2f},{py:.2f},{pz:.2f}) → {label}")
-        
+
         return {
             "geometry_mask_flat": mask,
             "geometry_mask_shape": shape,
@@ -147,6 +153,11 @@ def extract_bounding_box_with_gmsh(step_path, resolution=None, flow_region="inte
     finally:
         if gmsh.isInitialized():
             gmsh.finalize()
+
+
+def volume_bbox_volume(bbox):
+    min_x, min_y, min_z, max_x, max_y, max_z = bbox
+    return (max_x - min_x) * (max_y - min_y) * (max_z - min_z)
 
 
 if __name__ == "__main__":
@@ -173,7 +184,6 @@ if __name__ == "__main__":
     if args.output:
         with open(args.output, "w") as f:
             json.dump(result, f, indent=2)
-
 
 
 
