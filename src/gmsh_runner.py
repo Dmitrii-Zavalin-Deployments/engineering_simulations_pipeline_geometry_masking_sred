@@ -131,15 +131,14 @@ def extract_bounding_box_with_gmsh(step_path, resolution=None, flow_region="inte
             label = "fluid" if mask[i] == 1 else "solid"
             print(f"Voxel ({x_idx},{y_idx},{z_idx}) at ({px:.2f},{py:.2f},{pz:.2f}) → {label}")
         
-        # FIXES: Correct output keys and casing to match the original etalon
         return {
-            "flat_mask": mask,  # Changed key from 'geometry_mask_flat'
+            "geometry_mask_flat": mask,
             "geometry_mask_shape": shape,
             "mask_encoding": {
                 "fluid": 1,
                 "solid": 0
             },
-            "flattening_order": "X-Major" # Changed casing from 'x-major'
+            "flattening_order": "x-major"
         }
 
     except Exception as e:
