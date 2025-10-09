@@ -91,17 +91,20 @@ def extract_bounding_box_with_gmsh(step_path, resolution=None, flow_region="inte
 
         # Determine fluid volumes (for internal flow)
         fluid_volume_tags = []
-        use_conservative_masking = False
+        use_fluid_if_inside = False
 
         if flow_region == "internal":
             if len(volumes) > 1:
                 sorted_volumes = sorted(volumes, key=lambda v: volume_bbox_volume(gmsh.model.getBoundingBox(*v)))
                 fluid_volume_tags = [sorted_volumes[0][1]]
+                use_fluid_if_inside = True
                 print(f"Assuming volume tag(s) {fluid_volume_tags} as fluid region(s).")
             else:
-                # Single volume: use conservative masking (fluid = outside solid)
                 fluid_volume_tags = [volumes[0][1]]
-                use_conservative_masking = True
+                # Probe center to decide masking logic
+                center_point = [(min_x + max_x) / 2, (min_y + max_y) / 2, (min_z + max_z) / 2]
+                center_inside = gmsh.model.isInside(3, fluid_volume_tags[0], center_point)
+                use_fluid_if_inside = not center_inside
 
         mask = []
         for x_idx in range(nx):
@@ -113,12 +116,8 @@ def extract_bounding_box_with_gmsh(step_path, resolution=None, flow_region="inte
                     point = [px, py, pz]
 
                     if flow_region == "internal":
-                        if use_conservative_masking:
-                            is_inside = gmsh.model.isInside(3, fluid_volume_tags[0], point)
-                            value = 0 if is_inside else 1
-                        else:
-                            is_fluid = any(gmsh.model.isInside(3, tag, point) for tag in fluid_volume_tags)
-                            value = 1 if is_fluid else 0
+                        is_inside = any(gmsh.model.isInside(3, tag, point) for tag in fluid_volume_tags)
+                        value = 1 if is_inside and use_fluid_if_inside else 0 if is_inside else 1
                     elif flow_region == "external":
                         is_inside_any = any(gmsh.model.isInside(3, tag, point) for _, tag in volumes)
                         value = 1 if not is_inside_any else 0
