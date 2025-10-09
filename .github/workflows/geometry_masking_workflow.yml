@@ -270,7 +270,7 @@ jobs:
           
           # Commit error reports and trigger log
           if [ -d "tests/integration_tests_errors" ]; then
-            git add tests/integration_tests_errors
+            git add --force tests/integration_tests_errors
             echo "⚠️ Added error reports for commit."
           fi
           
