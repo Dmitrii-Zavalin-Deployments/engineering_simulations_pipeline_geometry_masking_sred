@@ -37,13 +37,15 @@ def main():
 
     if boundary_count > 0:
         if args.no_slip:
-            # Treat boundary as solid
             result["geometry_mask_flat"] = [0 if v == -1 else v for v in result["geometry_mask_flat"]]
             print("[INFO] Boundary voxels reclassified as solid (0) due to no_slip = True.")
         else:
-            # Treat boundary as fluid
             result["geometry_mask_flat"] = [1 if v == -1 else v for v in result["geometry_mask_flat"]]
             print("[INFO] Boundary voxels reclassified as fluid (1) due to no_slip = False.")
+
+        # Remove boundary from mask_encoding
+        if "boundary" in result["mask_encoding"]:
+            del result["mask_encoding"]["boundary"]
 
     print("[INFO] Final geometry mask:")
     print(json.dumps(result, indent=2))
