@@ -376,17 +376,19 @@ jobs:
 
           # Commit error reports and trigger log
           if [ -d "tests/integration_tests_errors" ]; then
-            # Inject a unique identifier (Run ID) into every error report file.
-            # This forces Git to see the file as 'changed' even if the core error message is identical.
             find tests/integration_tests_errors -type f -print0 | while IFS= read -r -d $'\0' file; do
               echo -e "\n--- Commit Details: Run ${{ github.run_id }} / Attempt ${{ github.run_attempt }} ---" >> "$file"
             done
-
-            # The --force flag is used to override .gitignore if necessary.
             git add --force tests/integration_tests_errors
             echo "⚠️ Added error reports for commit."
           fi
 
           git add trigger.txt
           git commit -m "Log STEP processor trigger by ${{ github.actor }} via ${{ github.event_name }}" || echo "No new log or errors to commit"
-          git push
+
+          # Pull and rebase before pushing to avoid rejection
+          git pull --rebase origin main || echo "⚠️ Rebase failed — check for conflicts"
+          git push origin main || echo "❌ Push failed — remote may have diverged"
+
+
+
