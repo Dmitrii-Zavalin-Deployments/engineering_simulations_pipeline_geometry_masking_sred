@@ -2,7 +2,6 @@
 
 import gmsh
 import os
-from src.utils.input_validation import load_resolution_profile
 from src.gmsh_core import (
     initialize_gmsh_model,
     compute_bounding_box,
@@ -15,11 +14,7 @@ def extract_geometry_mask(step_path, resolution=None, flow_region="internal", pa
         raise FileNotFoundError(f"STEP file not found: {step_path}")
 
     if resolution is None:
-        try:
-            profile = load_resolution_profile()
-            resolution = profile.get("default_resolution", {}).get("dx", 2)
-        except Exception:
-            resolution = 2
+        raise ValueError("Resolution must be explicitly defined. No default fallback is allowed.")
 
     gmsh.initialize()
     try:
@@ -52,30 +47,11 @@ def extract_geometry_mask(step_path, resolution=None, flow_region="internal", pa
         nz = max(1, int((max_z - min_z) / resolution))
         shape = [nx, ny, nz]
 
-        fluid_volume_tags = []
-
-        if flow_region == "internal":
-            if len(volumes) > 1:
-                sorted_volumes = sorted(volumes, key=lambda v: volume_bbox_volume(gmsh.model.getBoundingBox(*v)))
-                fluid_volume_tags = [sorted_volumes[0][1]]
-            else:
-                fluid_volume_tags = [volumes[0][1]]
-                bbox_volume = volume_bbox_volume(gmsh.model.getBoundingBox(3, fluid_volume_tags[0]))
-                total_bbox_volume = (max_x - min_x) * (max_y - min_y) * (max_z - min_z)
-                bbox_volume < 0.5 * total_bbox_volume
-
-            fluid_bbox = gmsh.model.getBoundingBox(3, fluid_volume_tags[0])
-            margin = 0.5 * resolution
-            fx_min, fy_min, fz_min, fx_max, fy_max, fz_max = fluid_bbox
-            fx_min += margin
-            fy_min += margin
-            fz_min += margin
-            fx_max -= margin
-            fy_max -= margin
-            fz_max -= margin
-
-            center = [(fx_min + fx_max) / 2, (fy_min + fy_max) / 2, (fz_min + fz_max) / 2]
-            gmsh.model.isInside(3, fluid_volume_tags[0], center)
+        if len(volumes) > 1:
+            sorted_volumes = sorted(volumes, key=lambda v: volume_bbox_volume(gmsh.model.getBoundingBox(*v)))
+            fluid_volume_tags = [sorted_volumes[0][1]]
+        else:
+            fluid_volume_tags = [volumes[0][1]]
 
         mask = []
         for x_idx in range(nx):
@@ -84,16 +60,7 @@ def extract_geometry_mask(step_path, resolution=None, flow_region="internal", pa
                 py = min_y + (y_idx + 0.5) * resolution
                 for z_idx in range(nz):
                     pz = min_z + (z_idx + 0.5) * resolution
-
-                    if flow_region == "internal":
-                        value = classify_voxel_by_corners(px, py, pz, resolution, fluid_volume_tags[0])
-                    elif flow_region == "external":
-                        point = [px, py, pz]
-                        is_inside_any = any(gmsh.model.isInside(3, tag, point) for _, tag in volumes)
-                        value = 1 if not is_inside_any else 0
-                    else:
-                        raise ValueError(f"Unsupported flow_region: {flow_region}")
-
+                    value = classify_voxel_by_corners(px, py, pz, resolution, fluid_volume_tags[0])
                     mask.append(value)
 
         return {
