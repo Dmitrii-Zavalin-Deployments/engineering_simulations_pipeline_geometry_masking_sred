@@ -41,6 +41,17 @@ def is_point_inside_bbox(px, py, pz, bbox):
             min_y <= py <= max_y and
             min_z <= pz <= max_z)
 
+def shrink_bbox(bbox, margin):
+    """
+    Shrinks a bounding box inward by a given margin.
+    Returns a new bounding box with reduced dimensions.
+    """
+    min_x, min_y, min_z, max_x, max_y, max_z = bbox
+    return (
+        min_x + margin, min_y + margin, min_z + margin,
+        max_x - margin, max_y - margin, max_z - margin
+    )
+
 # Future helpers can be added here:
 # def sort_volumes_by_size(volumes): ...
 # def probe_center_point(bbox): ...
