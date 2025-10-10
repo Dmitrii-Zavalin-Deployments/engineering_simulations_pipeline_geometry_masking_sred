@@ -79,11 +79,12 @@ def classify_voxel_by_corners(px, py, pz, resolution, fluid_volume_tag):
 
     statuses = [gmsh.model.isInside(3, fluid_volume_tag, corner) for corner in corners]
     if all(statuses):
-        return 1  # fluid
+        return 0  # solid ✅
     elif not any(statuses):
-        return 0  # solid
+        return 1  # fluid ✅
     else:
-        return -1  # boundary
+        return -1  # boundary ✅
+
 
 # Future helpers can be added here:
 # def sort_volumes_by_size(volumes): ...
