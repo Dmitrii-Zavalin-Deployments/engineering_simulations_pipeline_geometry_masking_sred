@@ -52,6 +52,14 @@ def shrink_bbox(bbox, margin):
         max_x - margin, max_y - margin, max_z - margin
     )
 
+def bbox_center(bbox):
+    """
+    Computes the center point of a bounding box.
+    Returns a list [cx, cy, cz].
+    """
+    min_x, min_y, min_z, max_x, max_y, max_z = bbox
+    return [(min_x + max_x)/2, (min_y + max_y)/2, (min_z + max_z)/2]
+
 # Future helpers can be added here:
 # def sort_volumes_by_size(volumes): ...
 # def probe_center_point(bbox): ...
