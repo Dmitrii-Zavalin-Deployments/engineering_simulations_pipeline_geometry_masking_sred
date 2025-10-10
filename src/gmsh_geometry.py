@@ -3,10 +3,14 @@
 import gmsh
 import os
 from src.utils.input_validation import load_resolution_profile
-from src.gmsh_core import initialize_gmsh_model, compute_bounding_box, volume_bbox_volume
+from src.gmsh_core import (
+    initialize_gmsh_model,
+    compute_bounding_box,
+    volume_bbox_volume,
+    classify_voxel_by_corners
+)
 
-
-def extract_geometry_mask(step_path, resolution=None, flow_region="internal", padding_factor=5):
+def extract_geometry_mask(step_path, resolution=None, flow_region="internal", padding_factor=5, no_slip=True):
     if not os.path.isfile(step_path):
         raise FileNotFoundError(f"STEP file not found: {step_path}")
 
@@ -50,7 +54,6 @@ def extract_geometry_mask(step_path, resolution=None, flow_region="internal", pa
 
         fluid_volume_tags = []
         fluid_is_inside = False
-        fluid_bbox = None
         is_center_inside = False
 
         if flow_region == "internal":
@@ -84,23 +87,11 @@ def extract_geometry_mask(step_path, resolution=None, flow_region="internal", pa
                 py = min_y + (y_idx + 0.5) * resolution
                 for z_idx in range(nz):
                     pz = min_z + (z_idx + 0.5) * resolution
-                    point = [px, py, pz]
 
                     if flow_region == "internal":
-                        is_inside = any(gmsh.model.isInside(3, tag, point) for tag in fluid_volume_tags)
-                        if fluid_is_inside and is_center_inside:
-                            in_fluid_bbox = (
-                                fx_min <= px <= fx_max and
-                                fy_min <= py <= fy_max and
-                                fz_min <= pz <= fz_max
-                            )
-                            is_inside_fluid = gmsh.model.isInside(3, fluid_volume_tags[0], point)
-                            value = 1 if is_inside_fluid and in_fluid_bbox else 0
-                        elif is_inside:
-                            value = 0
-                        else:
-                            value = 1
+                        value = classify_voxel_by_corners(px, py, pz, resolution, fluid_volume_tags[0])
                     elif flow_region == "external":
+                        point = [px, py, pz]
                         is_inside_any = any(gmsh.model.isInside(3, tag, point) for _, tag in volumes)
                         value = 1 if not is_inside_any else 0
                     else:
@@ -113,7 +104,8 @@ def extract_geometry_mask(step_path, resolution=None, flow_region="internal", pa
             "geometry_mask_shape": shape,
             "mask_encoding": {
                 "fluid": 1,
-                "solid": 0
+                "solid": 0,
+                "boundary": -1
             },
             "flattening_order": "x-major"
         }

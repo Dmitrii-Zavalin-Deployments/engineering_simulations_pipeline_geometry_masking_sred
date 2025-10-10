@@ -224,11 +224,13 @@ jobs:
         run: |
           resolution=$(python -c "import json; print(json.load(open('data/testing-input-output/flow_data.json'))['model_properties']['default_resolution'])")
           flow_region=$(python -c "import json; print(json.load(open('data/testing-input-output/flow_data.json'))['model_properties']['flow_region'])")
+          no_slip=$(python -c "import json; print(json.load(open('data/testing-input-output/flow_data.json'))['model_properties']['no_slip'])")
 
           python3 src/gmsh_runner.py \
             --step data/testing-input-output/input.step \
             --resolution "$resolution" \
             --flow_region "$flow_region" \
+            --no_slip "$no_slip" \
             --output data/testing-input-output/geometry_masking_gmsh.json
 
       - name: 🔍 Validate output JSON against schema

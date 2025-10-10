@@ -1,5 +1,3 @@
-# src/gmsh_core.py
-
 import gmsh
 
 def initialize_gmsh_model(step_path):
@@ -59,6 +57,33 @@ def bbox_center(bbox):
     """
     min_x, min_y, min_z, max_x, max_y, max_z = bbox
     return [(min_x + max_x)/2, (min_y + max_y)/2, (min_z + max_z)/2]
+
+def classify_voxel_by_corners(px, py, pz, resolution, fluid_volume_tag):
+    """
+    Classifies a voxel based on its 8 corners:
+    - Returns 1 if all corners are inside fluid
+    - Returns 0 if all corners are outside fluid
+    - Returns -1 if mixed (boundary)
+    """
+    half = 0.5 * resolution
+    corners = [
+        [px - half, py - half, pz - half],
+        [px - half, py -half, pz + half],
+        [px - half, py + half, pz - half],
+        [px - half, py + half, pz + half],
+        [px + half, py - half, pz - half],
+        [px + half, py - half, pz + half],
+        [px + half, py + half, pz - half],
+        [px + half, py + half, pz + half],
+    ]
+
+    statuses = [gmsh.model.isInside(3, fluid_volume_tag, corner) for corner in corners]
+    if all(statuses):
+        return 1  # fluid
+    elif not any(statuses):
+        return 0  # solid
+    else:
+        return -1  # boundary
 
 # Future helpers can be added here:
 # def sort_volumes_by_size(volumes): ...
