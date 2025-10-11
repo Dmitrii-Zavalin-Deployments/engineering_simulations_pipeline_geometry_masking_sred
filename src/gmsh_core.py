@@ -1,3 +1,5 @@
+# src/gmsh_core.py
+
 import gmsh
 
 def initialize_gmsh_model(step_path):
@@ -58,11 +60,20 @@ def bbox_center(bbox):
     min_x, min_y, min_z, max_x, max_y, max_z = bbox
     return [(min_x + max_x)/2, (min_y + max_y)/2, (min_z + max_z)/2]
 
-def classify_voxel_by_corners(px, py, pz, resolution, fluid_volume_tag):
+def is_inside_any_solid(corner, solid_volume_tags):
+    """
+    Returns True if the corner is inside any of the solid volumes.
+    """
+    for tag in solid_volume_tags:
+        if gmsh.model.isInside(3, tag, corner)[0]:
+            return True
+    return False
+
+def classify_voxel_by_corners(px, py, pz, resolution, solid_volume_tags):
     """
     Classifies a voxel based on its 8 corners:
-    - Returns 1 if all corners are inside fluid
-    - Returns 0 if all corners are outside fluid
+    - Returns 0 if all corners are inside solid
+    - Returns 1 if all corners are outside solid (fluid)
     - Returns -1 if mixed (boundary)
     """
     half = 0.5 * resolution
@@ -77,13 +88,13 @@ def classify_voxel_by_corners(px, py, pz, resolution, fluid_volume_tag):
         [px + half, py + half, pz + half],
     ]
 
-    statuses = [gmsh.model.isInside(3, fluid_volume_tag, corner) for corner in corners]
+    statuses = [is_inside_any_solid(corner, solid_volume_tags) for corner in corners]
     if all(statuses):
-        return 0  # solid ✅
+        return 0  # solid
     elif not any(statuses):
-        return 1  # fluid ✅
+        return 1  # fluid
     else:
-        return -1  # boundary ✅
+        return -1  # boundary
 
 
 # Future helpers can be added here:
