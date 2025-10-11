@@ -294,14 +294,14 @@ jobs:
           echo "✅ Integration test completed for cube_with_hole_slip."
 
       # ----------------------------------------------------------------------
-      # Integration Test 7: hollow_cylinder_external_output_no_slip (HARD FAIL on mismatch)
+      # Integration Test 7: hollow_cylinder_external_output_slip (HARD FAIL on mismatch)
       # ----------------------------------------------------------------------
-      - name: 🏃 Run Integration Test (hollow_cylinder_external_output_no_slip)
-        id: integration_test_hollow_cylinder_external_output_no_slip
+      - name: 🏃 Run Integration Test (hollow_cylinder_external_output_slip)
+        id: integration_test_hollow_cylinder_external_output_slip
         run: |
           STEP_FILE="tests/test_models/hollow_cylinder.step"
-          EXPECTED_OUTPUT_PATH="tests/test_models/hollow_cylinder_external_output_no_slip.json"
-          TEMP_OUTPUT_FILE="tests/test_models/hollow_cylinder_cli_output_no_slip.json"
+          EXPECTED_OUTPUT_PATH="tests/test_models/hollow_cylinder_external_output_slip.json"
+          TEMP_OUTPUT_FILE="tests/test_models/hollow_cylinder_cli_output_slip.json"
 
           if [ ! -f "$STEP_FILE" ]; then
             echo "❌ Fatal Error: STEP file ($STEP_FILE) not found. Cannot run integration test."
@@ -312,21 +312,23 @@ jobs:
             exit 1
           fi
 
-          echo "--- Running test: hollow_cylinder_external_output_no_slip (Expected Output: $EXPECTED_OUTPUT_PATH) ---"
+          echo "--- Running test: hollow_cylinder_external_output_slip (Expected Output: $EXPECTED_OUTPUT_PATH) ---"
 
-          RESOLUTION=1.0
+          RESOLUTION=0.5
           FLOW_REGION="external"
+          PADDING_FACTOR=1
 
           python3 src/gmsh_runner.py \
             --step "$STEP_FILE" \
             --resolution "$RESOLUTION" \
             --flow_region "$FLOW_REGION" \
-            --no_slip true \
+            --padding_factor "$PADDING_FACTOR" \
+            --no_slip false \
             --output "$TEMP_OUTPUT_FILE"
 
           python3 tests/helpers/compare_json.py "$EXPECTED_OUTPUT_PATH" "$TEMP_OUTPUT_FILE"
 
-          echo "✅ Integration test completed for hollow_cylinder_external_output_no_slip."
+          echo "✅ Integration test completed for hollow_cylinder_external_output_slip."
 
       - name: ☁️ Download & normalize STEP file
         env:
