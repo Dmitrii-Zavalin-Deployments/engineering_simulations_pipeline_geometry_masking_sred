@@ -65,7 +65,7 @@ def is_inside_any_solid(corner, solid_volume_tags):
     Returns True if the corner is inside any of the solid volumes.
     """
     for tag in solid_volume_tags:
-        if gmsh.model.isInside(3, tag, corner)[0]:
+        if gmsh.model.isInside(3, tag, corner):
             return True
     return False
 
