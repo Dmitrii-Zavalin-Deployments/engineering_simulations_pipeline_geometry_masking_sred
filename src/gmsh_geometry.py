@@ -2,38 +2,70 @@
 
 import gmsh
 import os
+from src.utils.input_validation import load_resolution_profile
 from src.gmsh_core import (
     initialize_gmsh_model,
     compute_bounding_box,
+    volume_bbox_volume,
     classify_voxel_by_corners
 )
 
-def filter_internal_solids(volumes, global_bbox):
+def identify_fluid_volumes(step_path):
     """
-    Filters out external solids based on bounding box intersection.
-    Returns a list of volume tags that are fully enclosed.
-    """
-    min_x, min_y, min_z, max_x, max_y, max_z = global_bbox
-    internal_tags = []
+    Loads a STEP file into Gmsh and identifies fluid volumes (holes) based on bounding box comparison.
+    Returns a list of volume tags that are fully enclosed and likely fluid regions.
 
+    Strategy:
+    1. Load the STEP file into Gmsh
+    2. Get all 3D volumes (outer shell, internal holes, disconnected parts)
+    3. Compute bounding boxes for each volume
+    4. Compare each volume’s bounding box to the global bounding box
+       - If a volume touches the outer bounding box → likely external shell
+       - If a volume is fully enclosed → likely internal hole
+    5. Return only fluid volume tags
+    """
+    gmsh.initialize()
+    gmsh.model.add("fluid_volume_filter")
+    gmsh.open(step_path)
+
+    volumes = gmsh.model.getEntities(3)
+    if not volumes:
+        gmsh.finalize()
+        raise ValueError("No 3D volumes found in STEP file.")
+
+    all_bboxes = [gmsh.model.getBoundingBox(dim, tag) for dim, tag in volumes]
+    min_x = min(b[0] for b in all_bboxes)
+    min_y = min(b[1] for b in all_bboxes)
+    min_z = min(b[2] for b in all_bboxes)
+    max_x = max(b[3] for b in all_bboxes)
+    max_y = max(b[4] for b in all_bboxes)
+    max_z = max(b[5] for b in all_bboxes)
+    global_bbox = (min_x, min_y, min_z, max_x, max_y, max_z)
+
+    fluid_tags = []
     for dim, tag in volumes:
         vmin_x, vmin_y, vmin_z, vmax_x, vmax_y, vmax_z = gmsh.model.getBoundingBox(dim, tag)
-        touches_boundary = (
+        touches_outer_bbox = (
             vmin_x <= min_x or vmax_x >= max_x or
             vmin_y <= min_y or vmax_y >= max_y or
             vmin_z <= min_z or vmax_z >= max_z
         )
-        if not touches_boundary:
-            internal_tags.append(tag)
+        if not touches_outer_bbox:
+            fluid_tags.append(tag)
 
-    return internal_tags
+    gmsh.finalize()
+    return fluid_tags
 
 def extract_geometry_mask(step_path, resolution=None, flow_region="internal", padding_factor=5, no_slip=True):
     if not os.path.isfile(step_path):
         raise FileNotFoundError(f"STEP file not found: {step_path}")
 
     if resolution is None:
-        raise ValueError("Resolution must be explicitly defined. No default fallback is allowed.")
+        try:
+            profile = load_resolution_profile()
+            resolution = profile.get("default_resolution", {}).get("dx", 2)
+        except Exception:
+            resolution = 2
 
     gmsh.initialize()
     try:
@@ -67,9 +99,10 @@ def extract_geometry_mask(step_path, resolution=None, flow_region="internal", pa
         shape = [nx, ny, nz]
 
         if flow_region == "internal":
-            solid_volume_tags = filter_internal_solids(volumes, (min_x, min_y, min_z, max_x, max_y, max_z))
-        else:
-            solid_volume_tags = [tag for dim, tag in volumes]
+            if len(volumes) > 1:
+                fluid_volume_tags = identify_fluid_volumes(step_path)
+            else:
+                fluid_volume_tags = [volumes[0][1]]
 
         mask = []
         for x_idx in range(nx):
@@ -78,7 +111,16 @@ def extract_geometry_mask(step_path, resolution=None, flow_region="internal", pa
                 py = min_y + (y_idx + 0.5) * resolution
                 for z_idx in range(nz):
                     pz = min_z + (z_idx + 0.5) * resolution
-                    value = classify_voxel_by_corners(px, py, pz, resolution, solid_volume_tags)
+
+                    if flow_region == "internal":
+                        value = classify_voxel_by_corners(px, py, pz, resolution, fluid_volume_tags)
+                    elif flow_region == "external":
+                        point = [px, py, pz]
+                        is_inside_any = any(gmsh.model.isInside(3, tag, point) for _, tag in volumes)
+                        value = 1 if not is_inside_any else 0
+                    else:
+                        raise ValueError(f"Unsupported flow_region: {flow_region}")
+
                     mask.append(value)
 
         return {
