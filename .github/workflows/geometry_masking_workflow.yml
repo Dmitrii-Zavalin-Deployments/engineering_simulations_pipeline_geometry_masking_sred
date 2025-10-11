@@ -83,6 +83,10 @@ jobs:
           gmsh -version || { echo "❌ Gmsh CLI not found"; exit 1; }
           python -c "import gmsh; gmsh.initialize(); gmsh.finalize(); print('✅ Gmsh Python bindings operational')" || { echo "❌ Gmsh Python bindings failed"; exit 1; }
 
+      - name: 🧹 Cleanup previous integration test errors
+        run: |
+          rm -f tests/integration_tests_errors/*.txt || echo "⚠️ No previous error files to remove"
+
       # ----------------------------------------------------------------------
       # Integration Test 1: test_cube_no_slip (HARD FAIL on mismatch)
       # ----------------------------------------------------------------------
