@@ -9,6 +9,26 @@ from src.gmsh_core import (
     classify_voxel_by_corners
 )
 
+def filter_internal_solids(volumes, global_bbox):
+    """
+    Filters out external solids based on bounding box intersection.
+    Returns a list of volume tags that are fully enclosed.
+    """
+    min_x, min_y, min_z, max_x, max_y, max_z = global_bbox
+    internal_tags = []
+
+    for dim, tag in volumes:
+        vmin_x, vmin_y, vmin_z, vmax_x, vmax_y, vmax_z = gmsh.model.getBoundingBox(dim, tag)
+        touches_boundary = (
+            vmin_x <= min_x or vmax_x >= max_x or
+            vmin_y <= min_y or vmax_y >= max_y or
+            vmin_z <= min_z or vmax_z >= max_z
+        )
+        if not touches_boundary:
+            internal_tags.append(tag)
+
+    return internal_tags
+
 def extract_geometry_mask(step_path, resolution=None, flow_region="internal", padding_factor=5, no_slip=True):
     if not os.path.isfile(step_path):
         raise FileNotFoundError(f"STEP file not found: {step_path}")
@@ -47,11 +67,10 @@ def extract_geometry_mask(step_path, resolution=None, flow_region="internal", pa
         nz = max(1, int((max_z - min_z) / resolution))
         shape = [nx, ny, nz]
 
-        if len(volumes) > 1:
-            sorted_volumes = sorted(volumes, key=lambda v: volume_bbox_volume(gmsh.model.getBoundingBox(*v)))
-            fluid_volume_tags = [sorted_volumes[0][1]]
+        if flow_region == "internal":
+            solid_volume_tags = filter_internal_solids(volumes, (min_x, min_y, min_z, max_x, max_y, max_z))
         else:
-            fluid_volume_tags = [volumes[0][1]]
+            solid_volume_tags = [tag for dim, tag in volumes]
 
         mask = []
         for x_idx in range(nx):
@@ -60,7 +79,7 @@ def extract_geometry_mask(step_path, resolution=None, flow_region="internal", pa
                 py = min_y + (y_idx + 0.5) * resolution
                 for z_idx in range(nz):
                     pz = min_z + (z_idx + 0.5) * resolution
-                    value = classify_voxel_by_corners(px, py, pz, resolution, fluid_volume_tags[0])
+                    value = classify_voxel_by_corners(px, py, pz, resolution, solid_volume_tags)
                     mask.append(value)
 
         return {
