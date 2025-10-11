@@ -6,7 +6,6 @@ from src.utils.input_validation import load_resolution_profile
 from src.gmsh_core import (
     initialize_gmsh_model,
     compute_bounding_box,
-    volume_bbox_volume,
     classify_voxel_by_corners
 )
 
@@ -40,7 +39,7 @@ def identify_fluid_volumes(step_path):
     max_x = max(b[3] for b in all_bboxes)
     max_y = max(b[4] for b in all_bboxes)
     max_z = max(b[5] for b in all_bboxes)
-    global_bbox = (min_x, min_y, min_z, max_x, max_y, max_z)
+    (min_x, min_y, min_z, max_x, max_y, max_z)
 
     fluid_tags = []
     for dim, tag in volumes:
