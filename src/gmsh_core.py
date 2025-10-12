@@ -1,5 +1,3 @@
-# src/gmsh_core.py
-
 import gmsh
 
 def initialize_gmsh_model(step_path):
@@ -25,20 +23,22 @@ def compute_bounding_box(volumes):
     max_z = max(b[5] for b in all_bboxes)
     return min_x, min_y, min_z, max_x, max_y, max_z
 
-def volume_bbox_volume(bbox):
+def get_decimal_precision(resolution):
     """
-    Computes the volume of a bounding box.
+    Returns the number of decimal places in the resolution.
+    For example: 0.5 → 1, 0.125 → 3
     """
-    min_x, min_y, min_z, max_x, max_y, max_z = bbox
-    return (max_x - min_x) * (max_y - min_y) * (max_z - min_z)
+    return max(0, len(str(resolution).split('.')[-1].rstrip('0')))
 
-def is_inside_model_geometry(corner, volume_tags):
+def is_inside_model_geometry(corner, volume_tags, precision):
     """
     Returns True if the corner is inside any of the model's volumes.
+    Applies resolution-based rounding to neutralize floating-point drift.
     """
-    print(f"[DEBUG] Testing corner: {corner}")
+    rounded_corner = [round(c, precision) for c in corner]
+    print(f"[DEBUG] Testing corner (rounded to {precision}): {rounded_corner}")
     for tag in volume_tags:
-        inside = gmsh.model.isInside(3, tag, corner)
+        inside = gmsh.model.isInside(3, tag, rounded_corner)
         print(f"[DEBUG]   Volume tag {tag}: isInside = {inside}")
         if inside:
             return True
@@ -51,6 +51,7 @@ def classify_voxel_by_corners(px, py, pz, resolution, volume_tags):
     - Returns 1 if all corners are outside geometry (fluid)
     - Returns -1 if mixed (boundary)
     """
+    precision = get_decimal_precision(resolution)
     print(f"\n[DEBUG] Classifying voxel at center: ({px:.3f}, {py:.3f}, {pz:.3f})")
     half = 0.5 * resolution
     corners = [
@@ -66,7 +67,7 @@ def classify_voxel_by_corners(px, py, pz, resolution, volume_tags):
 
     statuses = []
     for i, corner in enumerate(corners):
-        result = is_inside_model_geometry(corner, volume_tags)
+        result = is_inside_model_geometry(corner, volume_tags, precision)
         statuses.append(result)
         print(f"[DEBUG]   Corner {i}: {corner} → inside = {result}")
 
@@ -79,7 +80,6 @@ def classify_voxel_by_corners(px, py, pz, resolution, volume_tags):
     else:
         print("[DEBUG] → Classification: BOUNDARY (-1)")
         return -1
-
 
 # Future helpers can be added here:
 # def sort_volumes_by_size(volumes): ...
