@@ -44,53 +44,60 @@ def main():
     gmsh.initialize()
     try:
         validate_step_has_volumes(args.step)
+
+        # Proceed with geometry masking
+        result = extract_geometry_mask(
+            step_path=args.step,
+            resolution=args.resolution,
+            flow_region=args.flow_region,
+            padding_factor=args.padding_factor,
+            no_slip=args.no_slip,
+            model_data=model_data,
+            debug=args.debug
+        )
+
+        # Post-process boundary voxels based on no_slip flag
+        boundary_count = result["geometry_mask_flat"].count(-1)
+        print(f"[DEBUG] Found {boundary_count} boundary voxels (value = -1) before applying no_slip policy.")
+
+        if boundary_count > 0:
+            if args.no_slip:
+                result["geometry_mask_flat"] = [0 if v == -1 else v for v in result["geometry_mask_flat"]]
+                print("[INFO] Boundary voxels reclassified as solid (0) due to no_slip = True.")
+            else:
+                result["geometry_mask_flat"] = [1 if v == -1 else v for v in result["geometry_mask_flat"]]
+                print("[INFO] Boundary voxels reclassified as fluid (1) due to no_slip = False.")
+
+        # Remove boundary from mask_encoding
+        if "boundary" in result["mask_encoding"]:
+            del result["mask_encoding"]["boundary"]
+
+        # Show updated flow region and comment if fallback occurred
+        updated_region = model_data["model_properties"].get("flow_region")
+        region_comment = model_data["model_properties"].get("flow_region_comment", "")
+        print(f"[INFO] Final flow region used: {updated_region}")
+        if region_comment:
+            print(f"[INFO] Flow region comment: {region_comment}")
+
+        print("[INFO] Final geometry mask:")
+        print(json.dumps(result, indent=2))
+
+        if args.output:
+            with open(args.output, "w") as f:
+                json.dump(result, f, indent=2)
+            print(f"[INFO] Geometry mask written to: {args.output}")
+
     except (FileNotFoundError, ValidationError) as e:
-        gmsh.finalize()
         raise RuntimeError(f"❌ STEP file validation failed: {e}")
-
-    # Proceed with geometry masking
-    result = extract_geometry_mask(
-        step_path=args.step,
-        resolution=args.resolution,
-        flow_region=args.flow_region,
-        padding_factor=args.padding_factor,
-        no_slip=args.no_slip,
-        model_data=model_data,
-        debug=args.debug
-    )
-
-    # Post-process boundary voxels based on no_slip flag
-    boundary_count = result["geometry_mask_flat"].count(-1)
-    print(f"[DEBUG] Found {boundary_count} boundary voxels (value = -1) before applying no_slip policy.")
-
-    if boundary_count > 0:
-        if args.no_slip:
-            result["geometry_mask_flat"] = [0 if v == -1 else v for v in result["geometry_mask_flat"]]
-            print("[INFO] Boundary voxels reclassified as solid (0) due to no_slip = True.")
-        else:
-            result["geometry_mask_flat"] = [1 if v == -1 else v for v in result["geometry_mask_flat"]]
-            print("[INFO] Boundary voxels reclassified as fluid (1) due to no_slip = False.")
-
-    # Remove boundary from mask_encoding
-    if "boundary" in result["mask_encoding"]:
-        del result["mask_encoding"]["boundary"]
-
-    # Show updated flow region and comment if fallback occurred
-    updated_region = model_data["model_properties"].get("flow_region")
-    region_comment = model_data["model_properties"].get("flow_region_comment", "")
-    print(f"[INFO] Final flow region used: {updated_region}")
-    if region_comment:
-        print(f"[INFO] Flow region comment: {region_comment}")
-
-    print("[INFO] Final geometry mask:")
-    print(json.dumps(result, indent=2))
-
-    if args.output:
-        with open(args.output, "w") as f:
-            json.dump(result, f, indent=2)
-        print(f"[INFO] Geometry mask written to: {args.output}")
-
-    gmsh.finalize()
+    except Exception as e:
+        print(f"[ERROR] Unexpected failure: {e}")
+        raise
+    finally:
+        if gmsh.isInitialized():
+            try:
+                gmsh.finalize()
+            except Exception as e:
+                print(f"[WARN] Gmsh finalization error: {e}")
 
 if __name__ == "__main__":
     main()
