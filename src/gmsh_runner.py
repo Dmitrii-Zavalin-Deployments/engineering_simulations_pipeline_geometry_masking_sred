@@ -60,9 +60,9 @@ def main():
             result["geometry_mask_flat"] = [1 if v == -1 else v for v in result["geometry_mask_flat"]]
             print("[INFO] Boundary voxels reclassified as fluid (1) due to no_slip = False.")
             
-        # Remove boundary from mask_encoding
-        if "boundary" in result["mask_encoding"]:
-            del result["mask_encoding"]["boundary"]
+    # Remove boundary from mask_encoding
+    if "boundary" in result["mask_encoding"]:
+        del result["mask_encoding"]["boundary"]
 
     # Show updated flow region and comment if fallback occurred
     updated_region = model_data["model_properties"].get("flow_region")
