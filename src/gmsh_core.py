@@ -32,63 +32,36 @@ def volume_bbox_volume(bbox):
     min_x, min_y, min_z, max_x, max_y, max_z = bbox
     return (max_x - min_x) * (max_y - min_y) * (max_z - min_z)
 
-def is_point_inside_bbox(px, py, pz, bbox):
+def is_inside_model_geometry(corner, volume_tags):
     """
-    Checks whether a point (px, py, pz) is inside the given bounding box.
+    Returns True if the corner is inside any of the model's volumes.
     """
-    min_x, min_y, min_z, max_x, max_y, max_z = bbox
-    return (min_x <= px <= max_x and
-            min_y <= py <= max_y and
-            min_z <= pz <= max_z)
-
-def shrink_bbox(bbox, margin):
-    """
-    Shrinks a bounding box inward by a given margin.
-    Returns a new bounding box with reduced dimensions.
-    """
-    min_x, min_y, min_z, max_x, max_y, max_z = bbox
-    return (
-        min_x + margin, min_y + margin, min_z + margin,
-        max_x - margin, max_y - margin, max_z - margin
-    )
-
-def bbox_center(bbox):
-    """
-    Computes the center point of a bounding box.
-    Returns a list [cx, cy, cz].
-    """
-    min_x, min_y, min_z, max_x, max_y, max_z = bbox
-    return [(min_x + max_x)/2, (min_y + max_y)/2, (min_z + max_z)/2]
-
-def is_inside_any_solid(corner, solid_volume_tags):
-    """
-    Returns True if the corner is inside any of the solid volumes.
-    """
-    for tag in solid_volume_tags:
+    for tag in volume_tags:
         if gmsh.model.isInside(3, tag, corner):
             return True
     return False
 
-def classify_voxel_by_corners(px, py, pz, resolution, solid_volume_tags):
+def classify_voxel_by_corners(px, py, pz, resolution, volume_tags):
     """
     Classifies a voxel based on its 8 corners:
-    - Returns 0 if all corners are inside solid
-    - Returns 1 if all corners are outside solid (fluid)
+    - Returns 0 if all corners are inside geometry (solid)
+    - Returns 1 if all corners are outside geometry (fluid)
     - Returns -1 if mixed (boundary)
     """
     half = 0.5 * resolution
     corners = [
-        [px - half, py - half, pz - half],
-        [px - half, py -half, pz + half],
-        [px - half, py + half, pz - half],
-        [px - half, py + half, pz + half],
-        [px + half, py - half, pz - half],
-        [px + half, py - half, pz + half],
-        [px + half, py + half, pz - half],
-        [px + half, py + half, pz + half],
+        [px - half, py - half, pz - half],  # corner 0
+        [px - half, py - half, pz + half],  # corner 1
+        [px - half, py + half, pz - half],  # corner 2
+        [px - half, py + half, pz + half],  # corner 3
+        [px + half, py - half, pz - half],  # corner 4
+        [px + half, py - half, pz + half],  # corner 5
+        [px + half, py + half, pz - half],  # corner 6
+        [px + half, py + half, pz + half],  # corner 7
     ]
 
-    statuses = [is_inside_any_solid(corner, solid_volume_tags) for corner in corners]
+    statuses = [is_inside_model_geometry(corner, volume_tags) for corner in corners]
+
     if all(statuses):
         return 0  # solid
     elif not any(statuses):
