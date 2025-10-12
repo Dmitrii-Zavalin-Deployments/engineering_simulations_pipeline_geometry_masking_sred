@@ -86,6 +86,35 @@ jobs:
       - name: 🧹 Cleanup previous integration test errors
         run: |
           rm -f tests/integration_tests_errors/*.txt || echo "⚠️ No previous error files to remove"
+          
+      - name: ☁️ Download & normalize STEP file
+        env:
+          APP_KEY: ${{ secrets.APP_KEY }}
+          APP_SECRET: ${{ secrets.APP_SECRET }}
+          REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
+        run: |
+          chmod +x src/download_from_dropbox.sh
+          src/download_from_dropbox.sh
+
+          STEP_FILES=$(find data/testing-input-output -maxdepth 1 -type f -name "*.step")
+          COUNT=$(echo "$STEP_FILES" | wc -l)
+          if [ "$COUNT" -eq 0 ]; then
+            echo "❌ No STEP file found. Cannot proceed."
+            exit 1
+          elif [ "$COUNT" -gt 1 ]; then
+            echo "⚠️ Multiple STEP files found. Normalizing..."
+            STEP_FILE=$(echo "$STEP_FILES" | head -n 1)
+            mv "$STEP_FILE" data/testing-input-output/input.step
+            echo "✅ Normalized STEP file to input.step."
+          else
+            STEP_FILE=$(echo "$STEP_FILES")
+            if [ "$STEP_FILE" != "data/testing-input-output/input.step" ]; then
+              mv "$STEP_FILE" data/testing-input-output/input.step
+              echo "✅ Renamed $STEP_FILE to input.step"
+            else
+              echo "ℹ️ STEP file is already named input.step. No renaming needed."
+            fi
+          fi
 
       # ----------------------------------------------------------------------
       # Integration Test 1: test_cube_no_slip (HARD FAIL on mismatch)
@@ -333,35 +362,6 @@ jobs:
           python3 tests/helpers/compare_json.py "$EXPECTED_OUTPUT_PATH" "$TEMP_OUTPUT_FILE"
 
           echo "✅ Integration test completed for hollow_cylinder_external_output_slip."
-
-      - name: ☁️ Download & normalize STEP file
-        env:
-          APP_KEY: ${{ secrets.APP_KEY }}
-          APP_SECRET: ${{ secrets.APP_SECRET }}
-          REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
-        run: |
-          chmod +x src/download_from_dropbox.sh
-          src/download_from_dropbox.sh
-
-          STEP_FILES=$(find data/testing-input-output -maxdepth 1 -type f -name "*.step")
-          COUNT=$(echo "$STEP_FILES" | wc -l)
-          if [ "$COUNT" -eq 0 ]; then
-            echo "❌ No STEP file found. Cannot proceed."
-            exit 1
-          elif [ "$COUNT" -gt 1 ]; then
-            echo "⚠️ Multiple STEP files found. Normalizing..."
-            STEP_FILE=$(echo "$STEP_FILES" | head -n 1)
-            mv "$STEP_FILE" data/testing-input-output/input.step
-            echo "✅ Normalized STEP file to input.step."
-          else
-            STEP_FILE=$(echo "$STEP_FILES")
-            if [ "$STEP_FILE" != "data/testing-input-output/input.step" ]; then
-              mv "$STEP_FILE" data/testing-input-output/input.step
-              echo "✅ Renamed $STEP_FILE to input.step"
-            else
-              echo "ℹ️ STEP file is already named input.step. No renaming needed."
-            fi
-          fi
 
       - name: 🧠 Extract config & run Gmsh
         run: |

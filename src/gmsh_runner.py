@@ -24,15 +24,15 @@ def main():
     print(f"       No-slip         : {args.no_slip}")
     print(f"       Output path     : {args.output}")
 
-    # Load flow_data.json from same directory as STEP file
-    flow_data_path = os.path.join(os.path.dirname(args.step), "flow_data.json")
+    # Load flow_data.json from fixed location
+    flow_data_path = "data/testing-input-output/flow_data.json"
     if not os.path.isfile(flow_data_path):
-        raise FileNotFoundError(f"Missing flow_data.json next to STEP file: {flow_data_path}")
+        raise FileNotFoundError(f"Missing flow_data.json at expected location: {flow_data_path}")
 
     with open(flow_data_path, "r") as f:
         model_data = json.load(f)
 
-    # Inject CLI flow_region override if needed
+    # Inject CLI overrides
     model_data["model_properties"]["flow_region"] = args.flow_region
     model_data["model_properties"]["no_slip"] = args.no_slip
 
