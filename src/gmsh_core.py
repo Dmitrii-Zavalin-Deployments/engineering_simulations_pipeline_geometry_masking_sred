@@ -36,8 +36,11 @@ def is_inside_model_geometry(corner, volume_tags):
     """
     Returns True if the corner is inside any of the model's volumes.
     """
+    print(f"[DEBUG] Testing corner: {corner}")
     for tag in volume_tags:
-        if gmsh.model.isInside(3, tag, corner):
+        inside = gmsh.model.isInside(3, tag, corner)
+        print(f"[DEBUG]   Volume tag {tag}: isInside = {inside}")
+        if inside:
             return True
     return False
 
@@ -48,6 +51,7 @@ def classify_voxel_by_corners(px, py, pz, resolution, volume_tags):
     - Returns 1 if all corners are outside geometry (fluid)
     - Returns -1 if mixed (boundary)
     """
+    print(f"\n[DEBUG] Classifying voxel at center: ({px:.3f}, {py:.3f}, {pz:.3f})")
     half = 0.5 * resolution
     corners = [
         [px - half, py - half, pz - half],  # corner 0
@@ -60,14 +64,21 @@ def classify_voxel_by_corners(px, py, pz, resolution, volume_tags):
         [px + half, py + half, pz + half],  # corner 7
     ]
 
-    statuses = [is_inside_model_geometry(corner, volume_tags) for corner in corners]
+    statuses = []
+    for i, corner in enumerate(corners):
+        result = is_inside_model_geometry(corner, volume_tags)
+        statuses.append(result)
+        print(f"[DEBUG]   Corner {i}: {corner} → inside = {result}")
 
     if all(statuses):
-        return 0  # solid
+        print("[DEBUG] → Classification: SOLID (0)")
+        return 0
     elif not any(statuses):
-        return 1  # fluid
+        print("[DEBUG] → Classification: FLUID (1)")
+        return 1
     else:
-        return -1  # boundary
+        print("[DEBUG] → Classification: BOUNDARY (-1)")
+        return -1
 
 
 # Future helpers can be added here:
