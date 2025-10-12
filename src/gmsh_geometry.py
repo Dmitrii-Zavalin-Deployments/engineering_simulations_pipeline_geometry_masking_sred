@@ -89,7 +89,7 @@ def extract_geometry_mask(step_path, resolution=None, flow_region="internal", pa
                 py = min_y + (y_idx + 0.5) * resolution
                 for z_idx in range(nz):
                     pz = min_z + (z_idx + 0.5) * resolution
-                    value = classify_voxel_by_corners(px, py, pz, resolution, fluid_volume_tags[0])
+                    value = classify_voxel_by_corners(px, py, pz, resolution, fluid_volume_tags)
                     mask.append(value)
 
         return {
