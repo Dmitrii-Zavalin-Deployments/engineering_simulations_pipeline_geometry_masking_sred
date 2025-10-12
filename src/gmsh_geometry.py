@@ -2,6 +2,7 @@
 
 import gmsh
 import os
+import json
 from datetime import datetime
 from src.gmsh_core import (
     initialize_gmsh_model,
@@ -30,7 +31,7 @@ def validate_flow_region_and_update(model_data, volumes):
             f"Auto-switched to external due to non-cube geometry at {timestamp}"
         )
 
-def extract_geometry_mask(step_path, resolution=None, flow_region="internal", padding_factor=5, no_slip=True, model_data=None):
+def extract_geometry_mask(step_path, resolution=None, flow_region="internal", padding_factor=5, no_slip=True, model_data=None, debug=False):
     if not os.path.isfile(step_path):
         raise FileNotFoundError(f"STEP file not found: {step_path}")
 
@@ -84,7 +85,7 @@ def extract_geometry_mask(step_path, resolution=None, flow_region="internal", pa
                     value = classify_voxel_by_corners(px, py, pz, resolution, volume_tags)
                     mask.append(value)
 
-        return {
+        result = {
             "geometry_mask_flat": mask,
             "geometry_mask_shape": shape,
             "mask_encoding": {
@@ -94,6 +95,12 @@ def extract_geometry_mask(step_path, resolution=None, flow_region="internal", pa
             },
             "flattening_order": "x-major"
         }
+
+        if debug:
+            print("\n--- DEBUG: Geometry Mask Output ---")
+            print(json.dumps(result, indent=2))
+
+        return result
 
     finally:
         if gmsh.isInitialized():

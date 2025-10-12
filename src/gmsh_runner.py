@@ -13,6 +13,7 @@ def main():
     parser.add_argument("--padding_factor", type=int, default=5, help="Number of voxel layers to pad for external")
     parser.add_argument("--no_slip", type=lambda x: x.lower() == "true", default=True, help="Boundary condition: no-slip (True) or slip (False)")
     parser.add_argument("--output", type=str, help="Path to write geometry mask JSON")
+    parser.add_argument("--debug", action="store_true", help="Print full geometry mask structure for debugging")
 
     args = parser.parse_args()
 
@@ -23,6 +24,7 @@ def main():
     print(f"       Padding factor  : {args.padding_factor}")
     print(f"       No-slip         : {args.no_slip}")
     print(f"       Output path     : {args.output}")
+    print(f"       Debug mode      : {args.debug}")
 
     # Load flow_data.json from fixed location
     flow_data_path = "data/testing-input-output/flow_data.json"
@@ -42,7 +44,8 @@ def main():
         flow_region=args.flow_region,
         padding_factor=args.padding_factor,
         no_slip=args.no_slip,
-        model_data=model_data
+        model_data=model_data,
+        debug=args.debug
     )
 
     # Post-process boundary voxels based on no_slip flag
