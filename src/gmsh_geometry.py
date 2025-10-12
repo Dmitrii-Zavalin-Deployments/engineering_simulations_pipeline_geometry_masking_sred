@@ -6,7 +6,6 @@ from datetime import datetime
 from src.gmsh_core import (
     initialize_gmsh_model,
     compute_bounding_box,
-    volume_bbox_volume,
     classify_voxel_by_corners
 )
 
