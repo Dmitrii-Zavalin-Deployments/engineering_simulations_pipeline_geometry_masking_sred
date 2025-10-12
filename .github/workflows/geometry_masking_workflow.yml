@@ -261,6 +261,11 @@ jobs:
           python3 tests/helpers/compare_json.py "$EXPECTED_OUTPUT_PATH" "$TEMP_OUTPUT_FILE"
       
           echo "✅ Integration test completed for hollow_cylinder_external_output_slip."
+
+      - name: 🧪 Run Unit Tests with Coverage
+        run: |
+          pytest --cov=src --cov-report=term-missing
+          echo "✅ Unit tests and code coverage check completed."
       
       # ----------------------------------------------------------------------
       # Final CLI Run (config-driven)
@@ -293,11 +298,6 @@ jobs:
             jsonschema.validate(instance=data, schema=schema)
           "
           echo "✅ Output schema validated"
-
-      - name: 🧪 Run Unit Tests with Coverage
-        run: |
-          pytest --cov=src --cov-report=term-missing
-          echo "✅ Unit tests and code coverage check completed."
 
       - name: ☁️ Upload outputs to Dropbox
         env:
