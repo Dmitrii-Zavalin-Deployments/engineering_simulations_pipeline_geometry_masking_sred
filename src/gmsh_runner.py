@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import os
 from src.gmsh_geometry import extract_geometry_mask
 
 def main():
@@ -23,12 +24,25 @@ def main():
     print(f"       No-slip         : {args.no_slip}")
     print(f"       Output path     : {args.output}")
 
+    # Load flow_data.json from same directory as STEP file
+    flow_data_path = os.path.join(os.path.dirname(args.step), "flow_data.json")
+    if not os.path.isfile(flow_data_path):
+        raise FileNotFoundError(f"Missing flow_data.json next to STEP file: {flow_data_path}")
+
+    with open(flow_data_path, "r") as f:
+        model_data = json.load(f)
+
+    # Inject CLI flow_region override if needed
+    model_data["model_properties"]["flow_region"] = args.flow_region
+    model_data["model_properties"]["no_slip"] = args.no_slip
+
     result = extract_geometry_mask(
         step_path=args.step,
         resolution=args.resolution,
         flow_region=args.flow_region,
         padding_factor=args.padding_factor,
-        no_slip=args.no_slip
+        no_slip=args.no_slip,
+        model_data=model_data
     )
 
     # Post-process boundary voxels based on no_slip flag
@@ -43,9 +57,12 @@ def main():
             result["geometry_mask_flat"] = [1 if v == -1 else v for v in result["geometry_mask_flat"]]
             print("[INFO] Boundary voxels reclassified as fluid (1) due to no_slip = False.")
 
-        # Remove boundary from mask_encoding
-        if "boundary" in result["mask_encoding"]:
-            del result["mask_encoding"]["boundary"]
+    # Show updated flow region and comment if fallback occurred
+    updated_region = model_data["model_properties"].get("flow_region")
+    region_comment = model_data["model_properties"].get("flow_region_comment", "")
+    print(f"[INFO] Final flow region used: {updated_region}")
+    if region_comment:
+        print(f"[INFO] Flow region comment: {region_comment}")
 
     print("[INFO] Final geometry mask:")
     print(json.dumps(result, indent=2))
