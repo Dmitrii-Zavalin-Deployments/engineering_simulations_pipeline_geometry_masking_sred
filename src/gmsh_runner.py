@@ -3,7 +3,9 @@
 import argparse
 import json
 import os
+import gmsh
 from src.gmsh_geometry import extract_geometry_mask
+from src.utils.gmsh_input_check import validate_step_has_volumes, ValidationError
 
 def main():
     parser = argparse.ArgumentParser(description="Gmsh STEP parser for geometry mask metadata")
@@ -38,6 +40,15 @@ def main():
     model_data["model_properties"]["flow_region"] = args.flow_region
     model_data["model_properties"]["no_slip"] = args.no_slip
 
+    # Initialize Gmsh and validate STEP file
+    gmsh.initialize()
+    try:
+        validate_step_has_volumes(args.step)
+    except (FileNotFoundError, ValidationError) as e:
+        gmsh.finalize()
+        raise RuntimeError(f"❌ STEP file validation failed: {e}")
+
+    # Proceed with geometry masking
     result = extract_geometry_mask(
         step_path=args.step,
         resolution=args.resolution,
@@ -59,7 +70,7 @@ def main():
         else:
             result["geometry_mask_flat"] = [1 if v == -1 else v for v in result["geometry_mask_flat"]]
             print("[INFO] Boundary voxels reclassified as fluid (1) due to no_slip = False.")
-            
+
     # Remove boundary from mask_encoding
     if "boundary" in result["mask_encoding"]:
         del result["mask_encoding"]["boundary"]
@@ -78,6 +89,8 @@ def main():
         with open(args.output, "w") as f:
             json.dump(result, f, indent=2)
         print(f"[INFO] Geometry mask written to: {args.output}")
+
+    gmsh.finalize()
 
 if __name__ == "__main__":
     main()
