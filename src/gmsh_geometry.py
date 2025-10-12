@@ -74,32 +74,16 @@ def extract_geometry_mask(step_path, resolution=None, flow_region="internal", pa
         shape = [nx, ny, nz]
 
         mask = []
-
         volume_tags = [v[1] for v in volumes]
 
-        if flow_region == "internal":
-            for x_idx in range(nx):
-                px = min_x + (x_idx + 0.5) * resolution
-                for y_idx in range(ny):
-                    py = min_y + (y_idx + 0.5) * resolution
-                    for z_idx in range(nz):
-                        pz = min_z + (z_idx + 0.5) * resolution
-                        value = classify_voxel_by_corners(px, py, pz, resolution, volume_tags)
-                        mask.append(value)
-
-        elif flow_region == "external":
-            for x_idx in range(nx):
-                px = min_x + (x_idx + 0.5) * resolution
-                for y_idx in range(ny):
-                    py = min_y + (y_idx + 0.5) * resolution
-                    for z_idx in range(nz):
-                        pz = min_z + (z_idx + 0.5) * resolution
-                        point = [px, py, pz]
-                        is_inside_any = any(gmsh.model.isInside(3, tag, point) for tag in volume_tags)
-                        value = 1 if not is_inside_any else 0
-                        mask.append(value)
-        else:
-            raise ValueError(f"Unsupported flow_region: {flow_region}")
+        for x_idx in range(nx):
+            px = min_x + (x_idx + 0.5) * resolution
+            for y_idx in range(ny):
+                py = min_y + (y_idx + 0.5) * resolution
+                for z_idx in range(nz):
+                    pz = min_z + (z_idx + 0.5) * resolution
+                    value = classify_voxel_by_corners(px, py, pz, resolution, volume_tags)
+                    mask.append(value)
 
         return {
             "geometry_mask_flat": mask,
