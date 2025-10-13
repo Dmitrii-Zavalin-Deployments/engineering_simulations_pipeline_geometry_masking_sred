@@ -1,3 +1,5 @@
+# src/gmsh_geometry.py
+
 import gmsh
 import os
 import json
