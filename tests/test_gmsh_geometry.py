@@ -44,6 +44,7 @@ def mock_gmsh(monkeypatch):
     monkeypatch.setattr("src.gmsh_core.classify_voxel_by_corners", lambda px, py, pz, res, tags: 1)
 
 def test_extract_geometry_mask_internal(monkeypatch, mock_gmsh, tmp_path):
+    monkeypatch.setattr("src.gmsh_core.compute_bounding_box", lambda vols: (0, 0, 0, 1, 1, 1))
     step_file = tmp_path / "model.step"
     step_file.write_text("dummy")
 
@@ -69,6 +70,7 @@ def test_extract_geometry_mask_internal(monkeypatch, mock_gmsh, tmp_path):
     assert result["mask_encoding"]["fluid"] == 1
 
 def test_extract_geometry_mask_external(monkeypatch, mock_gmsh, tmp_path):
+    monkeypatch.setattr("src.gmsh_core.compute_bounding_box", lambda vols: (0, 0, 0, 1, 1, 1))
     step_file = tmp_path / "model.step"
     step_file.write_text("dummy")
 
