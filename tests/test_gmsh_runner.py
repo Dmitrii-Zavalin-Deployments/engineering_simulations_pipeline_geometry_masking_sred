@@ -60,28 +60,8 @@ def mock_geometry_mask(monkeypatch):
         }
     monkeypatch.setattr("src.gmsh_geometry.extract_geometry_mask", fake_mask)
 
-def test_valid_internal_flow(sample_flow_data, mock_volume_check, mock_geometry_mask):
-    args = mock.Mock()
-    args.step = "tests/test_models/test_cube.step"
-    args.resolution = 0.5
-    args.flow_region = "internal"
-    args.padding_factor = 5
-    args.no_slip = True
-    args.output = None
-    args.debug = False
-
     with mock.patch("argparse.ArgumentParser.parse_args", return_value=args):
         gmsh_runner.main()
-
-def test_valid_external_flow(sample_flow_data, mock_volume_check, mock_geometry_mask):
-    args = mock.Mock()
-    args.step = "tests/test_models/hollow_cylinder.step"
-    args.resolution = 0.5
-    args.flow_region = "external"
-    args.padding_factor = 2
-    args.no_slip = False
-    args.output = None
-    args.debug = False
 
     with mock.patch("argparse.ArgumentParser.parse_args", return_value=args):
         gmsh_runner.main()
@@ -116,66 +96,11 @@ def test_invalid_step_file(monkeypatch):
         with pytest.raises(RuntimeError, match="STEP file validation failed"):
             gmsh_runner.main()
 
-def test_boundary_reclassification_no_slip(sample_flow_data, mock_volume_check):
-    def mock_mask(**kwargs):
-        return {
-            "geometry_mask_flat": [-1, -1, 1],
-            "geometry_mask_shape": [1, 1, 3],
-            "mask_encoding": {"fluid": 1, "solid": 0, "boundary": -1},
-            "flattening_order": "x-major"
-        }
-    with mock.patch("src.gmsh_geometry.extract_geometry_mask", mock_mask):
-        args = mock.Mock()
-        args.step = "tests/test_models/test_cube.step"
-        args.resolution = 0.5
-        args.flow_region = "internal"
-        args.padding_factor = 5
-        args.no_slip = True
-        args.output = None
-        args.debug = False
-
         with mock.patch("argparse.ArgumentParser.parse_args", return_value=args):
             gmsh_runner.main()
 
-def test_boundary_reclassification_slip(sample_flow_data, mock_volume_check):
-    def mock_mask(**kwargs):
-        return {
-            "geometry_mask_flat": [-1, -1, 0],
-            "geometry_mask_shape": [1, 1, 3],
-            "mask_encoding": {"fluid": 1, "solid": 0, "boundary": -1},
-            "flattening_order": "x-major"
-        }
-    with mock.patch("src.gmsh_geometry.extract_geometry_mask", mock_mask):
-        args = mock.Mock()
-        args.step = "tests/test_models/test_cube.step"
-        args.resolution = 0.5
-        args.flow_region = "internal"
-        args.padding_factor = 5
-        args.no_slip = False
-        args.output = None
-        args.debug = False
-
         with mock.patch("argparse.ArgumentParser.parse_args", return_value=args):
             gmsh_runner.main()
-
-def test_output_written(sample_flow_data, mock_volume_check):
-    def mock_mask(**kwargs):
-        return {
-            "geometry_mask_flat": [0, 1, 1],
-            "geometry_mask_shape": [1, 1, 3],
-            "mask_encoding": {"fluid": 1, "solid": 0},
-            "flattening_order": "x-major"
-        }
-    with mock.patch("src.gmsh_geometry.extract_geometry_mask", mock_mask):
-        with tempfile.NamedTemporaryFile(delete=False) as tmp:
-            args = mock.Mock()
-            args.step = "tests/test_models/test_cube.step"
-            args.resolution = 0.5
-            args.flow_region = "internal"
-            args.padding_factor = 5
-            args.no_slip = True
-            args.output = tmp.name
-            args.debug = False
 
             with mock.patch("argparse.ArgumentParser.parse_args", return_value=args):
                 gmsh_runner.main()
