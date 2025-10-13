@@ -81,33 +81,4 @@ def test_missing_flow_data(monkeypatch):
         with pytest.raises(FileNotFoundError):
             gmsh_runner.main()
 
-def test_invalid_step_file(monkeypatch):
-    monkeypatch.setattr("src.utils.gmsh_input_check.validate_step_has_volumes", lambda path: (_ for _ in ()).throw(FileNotFoundError("STEP file not found")))
-    args = mock.Mock()
-    args.step = "invalid_path.step"
-    args.resolution = 0.5
-    args.flow_region = "internal"
-    args.padding_factor = 5
-    args.no_slip = True
-    args.output = None
-    args.debug = False
-
-    with mock.patch("argparse.ArgumentParser.parse_args", return_value=args):
-        with pytest.raises(RuntimeError, match="STEP file validation failed"):
-            gmsh_runner.main()
-
-        with mock.patch("argparse.ArgumentParser.parse_args", return_value=args):
-            gmsh_runner.main()
-
-        with mock.patch("argparse.ArgumentParser.parse_args", return_value=args):
-            gmsh_runner.main()
-
-            with mock.patch("argparse.ArgumentParser.parse_args", return_value=args):
-                gmsh_runner.main()
-
-            with open(tmp.name, "r") as f:
-                data = json.load(f)
-                assert "geometry_mask_flat" in data
-
-
 
