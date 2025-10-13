@@ -103,7 +103,7 @@ def test_download_files_success(mock_refresh, mock_dropbox, temp_log_and_folder)
 def test_dropbox_api_error(mock_refresh, monkeypatch, temp_log_and_folder):
     class MockDropbox:
         def __init__(self, token):
-            raise dropbox.exceptions.ApiError("mock_request", "mock_error")
+    raise dropbox.exceptions.ApiError("mock_request", "mock_error", "text", "en")
 
     monkeypatch.setattr("dropbox.Dropbox", MockDropbox)
     local_folder, log_file = temp_log_and_folder
