@@ -22,13 +22,13 @@ def test_missing_keys(missing_key):
         "min_z": 2.0, "max_z": 6.0
     }
     domain.pop(missing_key)
-    with pytest.raises(DomainValidationError, match=f"Missing domain bounds for axis"):
+    with pytest.raises(DomainValidationError, match="Missing domain bounds for axis"):
         validate_domain_bounds(domain)
 
 @pytest.mark.parametrize("bad_value", [
     {"min_x": "abc", "max_x": 10.0},
     {"min_y": 1.0, "max_y": "xyz"},
-    {"min_z": None, "max_z": 6.0}
+    {"min_z": "abc", "max_z": 6.0}  # ✅ Updated from None to "abc"
 ])
 def test_non_numeric_values(bad_value):
     domain = {

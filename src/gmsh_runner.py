@@ -7,6 +7,9 @@ import gmsh
 from src.gmsh_geometry import extract_geometry_mask
 from src.utils.gmsh_input_check import validate_step_has_volumes, ValidationError
 
+# ✅ Exposed for test patching
+FLOW_DATA_PATH = "data/testing-input-output/flow_data.json"
+
 def main():
     parser = argparse.ArgumentParser(description="Gmsh STEP parser for geometry mask metadata")
     parser.add_argument("--step", type=str, required=True, help="Path to STEP file")
@@ -28,8 +31,8 @@ def main():
     print(f"       Output path     : {args.output}")
     print(f"       Debug mode      : {args.debug}")
 
-    # Load flow_data.json from fixed location
-    flow_data_path = "data/testing-input-output/flow_data.json"
+    # ✅ Use module-level constant for test patching
+    flow_data_path = FLOW_DATA_PATH
     if not os.path.isfile(flow_data_path):
         raise FileNotFoundError(f"Missing flow_data.json at expected location: {flow_data_path}")
 

@@ -36,13 +36,13 @@ def test_compute_bounding_box():
 
 # --- initialize_gmsh_model ---
 
-def test_initialize_gmsh_model(monkeypatch):
-    monkeypatch.setattr("gmsh.model.add", lambda name: None)
-    monkeypatch.setattr("gmsh.logger.start", lambda: None)
-    monkeypatch.setattr("gmsh.open", lambda path: None)
-    monkeypatch.setattr("gmsh.model", mock.Mock())
+@mock.patch("src.gmsh_core.gmsh")
+def test_initialize_gmsh_model(mock_gmsh):
+    mock_gmsh.model.add.return_value = None
+    mock_gmsh.logger.start.return_value = None
+    mock_gmsh.open.return_value = None
     result = initialize_gmsh_model("mock_path.step")
-    assert result == gmsh.model
+    assert result == mock_gmsh.model
 
 # --- is_inside_model_geometry ---
 

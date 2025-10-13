@@ -39,6 +39,7 @@ def mock_gmsh(monkeypatch):
     monkeypatch.setattr("gmsh.isInitialized", lambda: True)
     monkeypatch.setattr("gmsh.model.getEntities", lambda dim: [(3, 1)])
     monkeypatch.setattr("src.gmsh_core.initialize_gmsh_model", lambda path: None)
+    # ✅ Ensure non-zero dimensions for both internal and external flow
     monkeypatch.setattr("src.gmsh_core.compute_bounding_box", lambda vols: (0, 0, 0, 1, 1, 1))
     monkeypatch.setattr("src.gmsh_core.classify_voxel_by_corners", lambda px, py, pz, res, tags: 1)
 
@@ -127,6 +128,7 @@ def test_resolution_too_large(monkeypatch, tmp_path):
     monkeypatch.setattr("gmsh.isInitialized", lambda: True)
     monkeypatch.setattr("gmsh.model.getEntities", lambda dim: [(3, 1)])
     monkeypatch.setattr("src.gmsh_core.initialize_gmsh_model", lambda path: None)
+    # ✅ Ensure bounding box is small enough to trigger resolution error
     monkeypatch.setattr("src.gmsh_core.compute_bounding_box", lambda vols: (0, 0, 0, 1, 1, 1))
 
     with pytest.raises(ValueError, match="Resolution 2.00 mm is too large"):
@@ -139,3 +141,6 @@ def test_resolution_too_large(monkeypatch, tmp_path):
             model_data={},
             debug=False
         )
+
+
+

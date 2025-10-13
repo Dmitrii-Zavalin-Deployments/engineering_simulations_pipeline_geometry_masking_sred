@@ -6,7 +6,7 @@ import pytest
 import tempfile
 from unittest import mock
 from src import gmsh_runner
-from src.utils import gmsh_input_check
+from src.utils import gmsh_input_check  # ✅ Corrected import path
 from src.gmsh_geometry import extract_geometry_mask
 
 # Mock Gmsh lifecycle
@@ -19,7 +19,7 @@ def mock_gmsh(monkeypatch):
 # Mock volume validation
 @pytest.fixture
 def mock_volume_check(monkeypatch):
-    monkeypatch.setattr(gmsh_input_check, "validate_step_has_volumes", lambda path: True)
+    monkeypatch.setattr("src.utils.gmsh_input_check.validate_step_has_volumes", lambda path: True)
 
 # Sample flow_data.json content
 @pytest.fixture
@@ -35,7 +35,7 @@ def sample_flow_data(tmp_path):
     flow_path = tmp_path / "flow_data.json"
     with open(flow_path, "w") as f:
         json.dump(flow_data, f)
-    monkeypatch = mock.patch("src.gmsh_runner.flow_data_path", str(flow_path))
+    monkeypatch = mock.patch("src.gmsh_runner.FLOW_DATA_PATH", str(flow_path))  # ✅ Updated to patch constant
     monkeypatch.start()
     yield flow_path
     monkeypatch.stop()
@@ -94,7 +94,7 @@ def test_missing_flow_data(monkeypatch):
             gmsh_runner.main()
 
 def test_invalid_step_file(monkeypatch):
-    monkeypatch.setattr("gmsh_input_check.validate_step_has_volumes", lambda path: (_ for _ in ()).throw(FileNotFoundError("STEP file not found")))
+    monkeypatch.setattr("src.utils.gmsh_input_check.validate_step_has_volumes", lambda path: (_ for _ in ()).throw(FileNotFoundError("STEP file not found")))
     args = mock.Mock()
     args.step = "invalid_path.step"
     args.resolution = 0.5

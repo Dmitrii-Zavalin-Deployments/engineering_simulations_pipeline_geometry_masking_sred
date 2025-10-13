@@ -22,6 +22,7 @@ def test_refresh_access_token_success(mock_post):
 @mock.patch("requests.post")
 def test_refresh_access_token_failure(mock_post):
     mock_post.return_value.status_code = 401
+    mock_post.return_value.text = "Unauthorized"
     with pytest.raises(Exception, match="Failed to refresh access token"):
         refresh_access_token("bad", "id", "secret")
 
@@ -72,7 +73,8 @@ def temp_log_and_folder(tmp_path):
     local_folder = tmp_path / "downloads"
     return str(local_folder), str(log_file)
 
-def test_download_files_success(mock_dropbox, temp_log_and_folder):
+@mock.patch("src.download_dropbox_files.refresh_access_token", return_value="mock_token")
+def test_download_files_success(mock_refresh, mock_dropbox, temp_log_and_folder):
     local_folder, log_file = temp_log_and_folder
     download_files_from_dropbox(
         dropbox_folder="/mock_folder",
@@ -96,7 +98,8 @@ def test_download_files_success(mock_dropbox, temp_log_and_folder):
         assert "⏭️ Skipped file (unsupported type): notes.txt" in log
         assert "🎉 Download completed." in log
 
-def test_dropbox_api_error(monkeypatch, temp_log_and_folder):
+@mock.patch("src.download_dropbox_files.refresh_access_token", return_value="mock_token")
+def test_dropbox_api_error(mock_refresh, monkeypatch, temp_log_and_folder):
     class MockDropbox:
         def __init__(self, token):
             raise dropbox.exceptions.ApiError("mock_request", "mock_error")
@@ -117,11 +120,8 @@ def test_dropbox_api_error(monkeypatch, temp_log_and_folder):
         log = f.read()
         assert "❌ Dropbox API error" in log
 
-def test_unexpected_error(monkeypatch, temp_log_and_folder):
-    def broken_refresh(*args, **kwargs):
-        raise RuntimeError("Simulated failure")
-
-    monkeypatch.setattr("src.download_dropbox_files.refresh_access_token", broken_refresh)
+@mock.patch("src.download_dropbox_files.refresh_access_token", side_effect=RuntimeError("Simulated failure"))
+def test_unexpected_error(mock_refresh, temp_log_and_folder):
     local_folder, log_file = temp_log_and_folder
 
     download_files_from_dropbox(
