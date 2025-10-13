@@ -18,6 +18,10 @@ def mock_gmsh(monkeypatch):
 
 # Mock volume validation
 @pytest.fixture(autouse=True)
+def mock_file_check(monkeypatch):
+    monkeypatch.setattr("os.path.isfile", lambda path: True)
+
+@pytest.fixture(autouse=True)
 def mock_step_validation(monkeypatch):
     monkeypatch.setattr("src.utils.gmsh_input_check.validate_step_has_volumes", lambda path: True)
 
