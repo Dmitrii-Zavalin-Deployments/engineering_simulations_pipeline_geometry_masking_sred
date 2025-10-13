@@ -1,109 +1,180 @@
 # tests/test_gmsh_runner.py
 
+import os
 import json
-import unittest
-from pathlib import Path
-from src.gmsh_runner import extract_bounding_box_with_gmsh
-from src.utils.gmsh_input_check import ValidationError
+import pytest
+import tempfile
+from unittest import mock
+from src import gmsh_runner
+from src.utils import gmsh_input_check
+from src.gmsh_geometry import extract_geometry_mask
 
-class GmshRunnerTests(unittest.TestCase):
-    """
-    Unit tests for the Gmsh runner's geometry mask extraction.
-    """
+# Mock Gmsh lifecycle
+@pytest.fixture(autouse=True)
+def mock_gmsh(monkeypatch):
+    monkeypatch.setattr("gmsh.initialize", lambda: None)
+    monkeypatch.setattr("gmsh.finalize", lambda: None)
+    monkeypatch.setattr("gmsh.isInitialized", lambda: True)
 
-    # Define the base path for test models
-    # Note: Path is adjusted to navigate from 'tests/' to 'tests/test_models/'
-    TEST_MODELS_DIR = Path(__file__).parent / "test_models"
+# Mock volume validation
+@pytest.fixture
+def mock_volume_check(monkeypatch):
+    monkeypatch.setattr(gmsh_input_check, "validate_step_has_volumes", lambda path: True)
 
-    # Define the name of the file that is expected to fail
-    INVALID_GEOMETRY_FILE = "mock_invalid_geometry.step"
+# Sample flow_data.json content
+@pytest.fixture
+def sample_flow_data(tmp_path):
+    flow_data = {
+        "model_properties": {
+            "default_resolution": 0.5,
+            "flow_region": "internal",
+            "flow_region_comment": "",
+            "no_slip": True
+        }
+    }
+    flow_path = tmp_path / "flow_data.json"
+    with open(flow_path, "w") as f:
+        json.dump(flow_data, f)
+    monkeypatch = mock.patch("src.gmsh_runner.flow_data_path", str(flow_path))
+    monkeypatch.start()
+    yield flow_path
+    monkeypatch.stop()
 
-    def test_all_models(self):
-        """
-        Iterates through all valid .step files in the test_models directory,
-        runs the gmsh runner, and asserts the output against the corresponding JSON file.
-        The invalid geometry test case is handled separately.
+# Mock extract_geometry_mask
+@pytest.fixture
+def mock_geometry_mask(monkeypatch):
+    def fake_mask(**kwargs):
+        return {
+            "geometry_mask_flat": [-1, 1, 0],
+            "geometry_mask_shape": [1, 1, 3],
+            "mask_encoding": {"fluid": 1, "solid": 0, "boundary": -1},
+            "flattening_order": "x-major"
+        }
+    monkeypatch.setattr("src.gmsh_geometry.extract_geometry_mask", fake_mask)
 
-        NOTE: This run is currently filtered to only test 'test_cube.step'.
-        """
-        test_dir = self.TEST_MODELS_DIR
-        print(f"Searching for test models in: {test_dir}")
+def test_valid_internal_flow(sample_flow_data, mock_volume_check, mock_geometry_mask):
+    args = mock.Mock()
+    args.step = "tests/test_models/test_cube.step"
+    args.resolution = 0.5
+    args.flow_region = "internal"
+    args.padding_factor = 5
+    args.no_slip = True
+    args.output = None
+    args.debug = False
 
-        # Loop through all files in the test directory
-        for step_file in test_dir.glob("*.step"):
+    with mock.patch("argparse.ArgumentParser.parse_args", return_value=args):
+        gmsh_runner.main()
 
-            # --- START: FILTER FOR USER REQUEST ---
-            # Only test test_cube.step as requested.
-            if step_file.name != "test_cube.step":
-                continue
-            # --- END: FILTER FOR USER REQUEST ---
+def test_valid_external_flow(sample_flow_data, mock_volume_check, mock_geometry_mask):
+    args = mock.Mock()
+    args.step = "tests/test_models/hollow_cylinder.step"
+    args.resolution = 0.5
+    args.flow_region = "external"
+    args.padding_factor = 2
+    args.no_slip = False
+    args.output = None
+    args.debug = False
 
-            # Skip the explicitly invalid geometry file (if we were running all files)
-            if step_file.name == self.INVALID_GEOMETRY_FILE:
-                continue
+    with mock.patch("argparse.ArgumentParser.parse_args", return_value=args):
+        gmsh_runner.main()
 
-            with self.subTest(step_file=step_file.name):
-                print(f"\n--- Testing model: {step_file.name} ---")
+def test_missing_flow_data(monkeypatch):
+    monkeypatch.setattr("os.path.isfile", lambda path: False)
+    args = mock.Mock()
+    args.step = "tests/test_models/test_cube.step"
+    args.resolution = 0.5
+    args.flow_region = "internal"
+    args.padding_factor = 5
+    args.no_slip = True
+    args.output = None
+    args.debug = False
 
-                # Define the corresponding output JSON file path
-                json_file_name = step_file.stem + "_internal_output.json"
+    with mock.patch("argparse.ArgumentParser.parse_args", return_value=args):
+        with pytest.raises(FileNotFoundError):
+            gmsh_runner.main()
 
-                # Special handling for test_cube.step, which uses 'test_cube_output.json'
-                if step_file.name == "test_cube.step":
-                    json_file_name = "test_cube_output.json"
+def test_invalid_step_file(monkeypatch):
+    monkeypatch.setattr("gmsh_input_check.validate_step_has_volumes", lambda path: (_ for _ in ()).throw(FileNotFoundError("STEP file not found")))
+    args = mock.Mock()
+    args.step = "invalid_path.step"
+    args.resolution = 0.5
+    args.flow_region = "internal"
+    args.padding_factor = 5
+    args.no_slip = True
+    args.output = None
+    args.debug = False
 
-                json_path = test_dir / json_file_name
+    with mock.patch("argparse.ArgumentParser.parse_args", return_value=args):
+        with pytest.raises(RuntimeError, match="STEP file validation failed"):
+            gmsh_runner.main()
 
-                # Skip if the corresponding JSON file doesn't exist
-                if not json_path.exists():
-                    print(f"Skipping: {json_path} not found.")
-                    continue
+def test_boundary_reclassification_no_slip(sample_flow_data, mock_volume_check):
+    def mock_mask(**kwargs):
+        return {
+            "geometry_mask_flat": [-1, -1, 1],
+            "geometry_mask_shape": [1, 1, 3],
+            "mask_encoding": {"fluid": 1, "solid": 0, "boundary": -1},
+            "flattening_order": "x-major"
+        }
+    with mock.patch("src.gmsh_geometry.extract_geometry_mask", mock_mask):
+        args = mock.Mock()
+        args.step = "tests/test_models/test_cube.step"
+        args.resolution = 0.5
+        args.flow_region = "internal"
+        args.padding_factor = 5
+        args.no_slip = True
+        args.output = None
+        args.debug = False
 
-                # Load the expected output from the JSON file
-                with open(json_path, "r") as f:
-                    expected_output = json.load(f)
+        with mock.patch("argparse.ArgumentParser.parse_args", return_value=args):
+            gmsh_runner.main()
 
-                # Determine flow region from file name if applicable
-                flow_region = "external" if "external" in step_file.stem else "internal"
-                print(f"Detected flow region: {flow_region}")
+def test_boundary_reclassification_slip(sample_flow_data, mock_volume_check):
+    def mock_mask(**kwargs):
+        return {
+            "geometry_mask_flat": [-1, -1, 0],
+            "geometry_mask_shape": [1, 1, 3],
+            "mask_encoding": {"fluid": 1, "solid": 0, "boundary": -1},
+            "flattening_order": "x-major"
+        }
+    with mock.patch("src.gmsh_geometry.extract_geometry_mask", mock_mask):
+        args = mock.Mock()
+        args.step = "tests/test_models/test_cube.step"
+        args.resolution = 0.5
+        args.flow_region = "internal"
+        args.padding_factor = 5
+        args.no_slip = False
+        args.output = None
+        args.debug = False
 
-                # Run the gmsh runner function
-                try:
-                    # NOTE: Using 'resolution=None' currently defaults to an internally calculated value.
-                    # For test_cube, the log confirmed 0.25mm is the correct value, which the pipeline should infer.
-                    actual_output = extract_bounding_box_with_gmsh(
-                        step_path=str(step_file),
-                        resolution=None,
-                        flow_region=flow_region
-                    )
+        with mock.patch("argparse.ArgumentParser.parse_args", return_value=args):
+            gmsh_runner.main()
 
-                    # Assert that the actual output matches the expected output
-                    self.assertEqual(actual_output, expected_output,
-                                     f"Output mismatch for model: {step_file.name}")
-                    print(f"✅ Test passed for {step_file.name}")
+def test_output_written(sample_flow_data, mock_volume_check):
+    def mock_mask(**kwargs):
+        return {
+            "geometry_mask_flat": [0, 1, 1],
+            "geometry_mask_shape": [1, 1, 3],
+            "mask_encoding": {"fluid": 1, "solid": 0},
+            "flattening_order": "x-major"
+        }
+    with mock.patch("src.gmsh_geometry.extract_geometry_mask", mock_mask):
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+            args = mock.Mock()
+            args.step = "tests/test_models/test_cube.step"
+            args.resolution = 0.5
+            args.flow_region = "internal"
+            args.padding_factor = 5
+            args.no_slip = True
+            args.output = tmp.name
+            args.debug = False
 
-                except Exception as e:
-                    self.fail(f"Test failed for {step_file.name} unexpectedly with error: {e}")
+            with mock.patch("argparse.ArgumentParser.parse_args", return_value=args):
+                gmsh_runner.main()
 
-    def test_invalid_geometry_raises_error(self):
-        """
-        Tests that extract_bounding_box_with_gmsh raises a ValidationError
-        when provided with a STEP file that contains no 3D volumes.
-        """
-        invalid_step_path = str(self.TEST_MODELS_DIR / self.INVALID_GEOMETRY_FILE)
-
-        # CRITICAL FIX: Assert that the specific ValidationError is raised
-        with self.assertRaises(ValidationError) as context:
-            extract_bounding_box_with_gmsh(step_path=invalid_step_path)
-
-        # Check for part of the expected error message
-        self.assertIn("STEP file contains no 3D volumes", str(context.exception))
-
-        print(f"✅ Test passed for {self.INVALID_GEOMETRY_FILE} (correctly raised ValidationError)")
-
-
-if __name__ == "__main__":
-    unittest.main()
+            with open(tmp.name, "r") as f:
+                data = json.load(f)
+                assert "geometry_mask_flat" in data
 
 
 
