@@ -17,6 +17,10 @@ def mock_gmsh(monkeypatch):
     monkeypatch.setattr("gmsh.isInitialized", lambda: True)
 
 # Mock volume validation
+@pytest.fixture(autouse=True)
+def mock_step_validation(monkeypatch):
+    monkeypatch.setattr("src.utils.gmsh_input_check.validate_step_has_volumes", lambda path: True)
+
 @pytest.fixture
 def mock_volume_check(monkeypatch):
     monkeypatch.setattr("src.utils.gmsh_input_check.validate_step_has_volumes", lambda path: True)
