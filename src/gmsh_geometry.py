@@ -10,26 +10,70 @@ from src.gmsh_core import (
     classify_voxel_by_corners
 )
 
-def validate_flow_region_and_update(model_data, volumes):
+def validate_flow_region_and_update(model_data, volumes, debug=False):
     """
-    Validates whether the geometry is cube-bounded. If not, updates flow_region to 'external'
-    and adds a timestamped comment to flow_region_comment.
+    Validates whether the geometry is structurally box-shaped.
+    If not, updates flow_region to 'external' and adds a timestamped comment.
     """
     min_x, min_y, min_z, max_x, max_y, max_z = compute_bounding_box(volumes)
-    dim_x = max_x - min_x
-    dim_y = max_y - min_y
-    dim_z = max_z - min_z
+    bounding_planes = {
+        "x_min": min_x, "x_max": max_x,
+        "y_min": min_y, "y_max": max_y,
+        "z_min": min_z, "z_max": max_z
+    }
 
-    if dim_x == 0 or dim_y == 0 or dim_z == 0:
-        raise ValueError("Invalid geometry: one or more dimensions are zero.")
+    if debug:
+        print("[DEBUG] Bounding box:")
+        print(f"        X: {min_x} → {max_x}")
+        print(f"        Y: {min_y} → {max_y}")
+        print(f"        Z: {min_z} → {max_z}")
 
+    dims = [max_x - min_x, max_y - min_y, max_z - min_z]
+    if any(d <= 0 for d in dims):
+        raise ValueError("Invalid geometry: one or more dimensions are zero or negative.")
+
+    surfaces = gmsh.model.getEntities(dim=2)
     tolerance = 1e-6
-    if abs(dim_x - dim_y) > tolerance or abs(dim_y - dim_z) > tolerance or abs(dim_x - dim_z) > tolerance:
+    non_box_faces = []
+
+    for dim, tag in surfaces:
+        centroid = gmsh.model.occ.getCenterOfMass(dim, tag)
+        face_plane = None
+
+        for axis, bound in bounding_planes.items():
+            axis_index = {"x": 0, "y": 1, "z": 2}[axis[0]]
+            if abs(centroid[axis_index] - bound) < tolerance:
+                face_plane = (axis[0], bound)
+                break
+
+        if not face_plane:
+            continue
+
+        edges = gmsh.model.getBoundary([(dim, tag)], oriented=False)
+        for e_dim, e_tag in edges:
+            node_coords = gmsh.model.getValue(e_dim, e_tag, [0.0, 1.0])
+            for i in range(0, len(node_coords), 3):
+                coord = node_coords[i:i+3]
+                axis_index = {"x": 0, "y": 1, "z": 2}[face_plane[0]]
+                if abs(coord[axis_index] - face_plane[1]) > tolerance:
+                    non_box_faces.append((dim, tag))
+                    break
+            if (dim, tag) in non_box_faces:
+                break
+
+    if non_box_faces:
         model_data["model_properties"]["flow_region"] = "external"
         timestamp = datetime.utcnow().isoformat() + "Z"
         model_data["model_properties"]["flow_region_comment"] = (
-            f"Auto-switched to external due to non-cube geometry at {timestamp}"
+            f"Auto-switched to external due to non-planar bounding face(s) at {timestamp}"
         )
+        if debug:
+            print(f"[DEBUG] Non-box faces detected: {len(non_box_faces)}")
+            for f in non_box_faces:
+                print(f"        Face ID: {f}")
+    else:
+        if debug:
+            print("[DEBUG] Geometry passed box-shaped validation. Flow region remains internal.")
 
 def extract_geometry_mask(step_path, resolution=None, flow_region="internal", padding_factor=5, no_slip=True, model_data=None, debug=False):
     if debug:
@@ -61,7 +105,7 @@ def extract_geometry_mask(step_path, resolution=None, flow_region="internal", pa
         if model_data and flow_region == "internal":
             if debug:
                 print("[DEBUG] Validating flow region based on geometry...")
-            validate_flow_region_and_update(model_data, volumes)
+            validate_flow_region_and_update(model_data, volumes, debug=debug)
             flow_region = model_data["model_properties"]["flow_region"]
             if debug:
                 print(f"[DEBUG] Flow region after validation: {flow_region}")
@@ -141,6 +185,5 @@ def extract_geometry_mask(step_path, resolution=None, flow_region="internal", pa
             if debug:
                 print("[DEBUG] Finalizing Gmsh...")
             gmsh.finalize()
-
 
 
