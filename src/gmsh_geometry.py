@@ -151,8 +151,8 @@ def extract_geometry_mask(step_path, resolution=None, flow_region="internal", pa
         volume_tags = [v[1] for v in volumes]
         if debug:
             print(f"[DEBUG] Volume tags: {volume_tags}")
-        
-         for z_idx in range(nz):        # outermost
+
+        for z_idx in range(nz):        # outermost
             pz = min_z + (z_idx + 0.5) * resolution
             for y_idx in range(ny):    # middle
                 py = min_y + (y_idx + 0.5) * resolution
@@ -185,5 +185,6 @@ def extract_geometry_mask(step_path, resolution=None, flow_region="internal", pa
             if debug:
                 print("[DEBUG] Finalizing Gmsh...")
             gmsh.finalize()
+
 
 
