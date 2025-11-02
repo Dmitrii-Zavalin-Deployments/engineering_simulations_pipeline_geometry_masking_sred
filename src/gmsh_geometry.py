@@ -151,13 +151,13 @@ def extract_geometry_mask(step_path, resolution=None, flow_region="internal", pa
         volume_tags = [v[1] for v in volumes]
         if debug:
             print(f"[DEBUG] Volume tags: {volume_tags}")
-
-        for x_idx in range(nx):
-            px = min_x + (x_idx + 0.5) * resolution
-            for y_idx in range(ny):
+        
+         for z_idx in range(nz):        # outermost
+            pz = min_z + (z_idx + 0.5) * resolution
+            for y_idx in range(ny):    # middle
                 py = min_y + (y_idx + 0.5) * resolution
-                for z_idx in range(nz):
-                    pz = min_z + (z_idx + 0.5) * resolution
+                for x_idx in range(nx):  # innermost (x-major)
+                    px = min_x + (x_idx + 0.5) * resolution
                     if debug:
                         print(f"\n[DEBUG] Voxel index: ({x_idx}, {y_idx}, {z_idx}) → center=({px:.3f}, {py:.3f}, {pz:.3f})")
                     value = classify_voxel_by_corners(px, py, pz, resolution, volume_tags)
