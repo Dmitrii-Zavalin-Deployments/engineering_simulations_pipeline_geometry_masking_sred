@@ -14,4 +14,7 @@ def refresh_access_token(refresh_token, client_id, client_secret):
     if response.status_code == 200:
         return response.json()["access_token"]
     else:
-        raise Exception("❌ Failed to refresh access token")
+        raise Exception(f"Failed to refresh access token: Status Code {response.status_code}, Response: {response.text}")
+
+
+
