@@ -3,7 +3,7 @@
 import dropbox
 import os
 import sys
-from dropbox_utils import refresh_access_token  # ✅ Shared utility
+from src.dropbox_utils import refresh_access_token  # ✅ Shared utility
 
 # Allowed extensions to download
 ALLOWED_EXTENSIONS = [".step", ".stp", ".json", ".zip"]

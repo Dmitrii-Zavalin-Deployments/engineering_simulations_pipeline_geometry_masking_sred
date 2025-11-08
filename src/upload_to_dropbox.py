@@ -3,7 +3,7 @@
 import dropbox
 import os
 import sys
-from dropbox_utils import refresh_access_token  # ✅ Shared utility
+from src.dropbox_utils import refresh_access_token  # ✅ Shared utility
 
 # Function to upload a file to Dropbox
 def upload_file_to_dropbox(local_file_path, dropbox_file_path, refresh_token, client_id, client_secret):
