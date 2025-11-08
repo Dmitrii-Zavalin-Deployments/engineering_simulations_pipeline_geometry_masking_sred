@@ -2,26 +2,11 @@
 
 import dropbox
 import os
-import requests
 import sys
+from dropbox_utils import refresh_access_token  # ✅ Shared utility
 
 # Allowed extensions to download
 ALLOWED_EXTENSIONS = [".step", ".stp", ".json", ".zip"]
-
-# Function to refresh the access token
-def refresh_access_token(refresh_token, client_id, client_secret):
-    url = "https://api.dropbox.com/oauth2/token"
-    data = {
-        "grant_type": "refresh_token",
-        "refresh_token": refresh_token,
-        "client_id": client_id,
-        "client_secret": client_secret
-    }
-    response = requests.post(url, data=data)
-    if response.status_code == 200:
-        return response.json()["access_token"]
-    else:
-        raise Exception("❌ Failed to refresh access token")
 
 # Function to download filtered files and optionally delete them afterwards
 def download_files_from_dropbox(dropbox_folder, local_folder, refresh_token, client_id, client_secret, log_file_path):

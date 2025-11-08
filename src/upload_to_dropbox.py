@@ -1,24 +1,9 @@
+# src/upload_to_dropbox.py
+
 import dropbox
 import os
-import requests
 import sys
-
-# Function to refresh the access token
-def refresh_access_token(refresh_token, client_id, client_secret):
-    """Refreshes the Dropbox access token using the refresh token."""
-    url = "https://api.dropbox.com/oauth2/token"
-    data = {
-        "grant_type": "refresh_token",
-        "refresh_token": refresh_token,
-        "client_id": client_id,
-        "client_secret": client_secret
-    }
-    response = requests.post(url, data=data)
-    if response.status_code == 200:
-        return response.json()["access_token"]
-    else:
-        # Provide more detailed error message for debugging
-        raise Exception(f"Failed to refresh access token: Status Code {response.status_code}, Response: {response.text}")
+from dropbox_utils import refresh_access_token  # ✅ Shared utility
 
 # Function to upload a file to Dropbox
 def upload_file_to_dropbox(local_file_path, dropbox_file_path, refresh_token, client_id, client_secret):
@@ -33,10 +18,10 @@ def upload_file_to_dropbox(local_file_path, dropbox_file_path, refresh_token, cl
             # Upload the file, overwriting if it already exists
             dbx.files_upload(f.read(), dropbox_file_path, mode=dropbox.files.WriteMode.overwrite)
         print(f"✅ Successfully uploaded file to Dropbox: {dropbox_file_path}")
-        return True # Indicate success
+        return True  # Indicate success
     except Exception as e:
         print(f"❌ Failed to upload file '{local_file_path}' to Dropbox: {e}")
-        return False # Indicate failure
+        return False  # Indicate failure
 
 # Entry point for the script
 if __name__ == "__main__":
@@ -48,7 +33,7 @@ if __name__ == "__main__":
     # 5. client_secret (APP_SECRET)
     if len(sys.argv) != 6:
         print("Usage: python src/upload_to_dropbox.py <local_file_path> <dropbox_folder> <refresh_token> <client_id> <client_secret>")
-        sys.exit(1) # Exit with an error code for incorrect usage
+        sys.exit(1)  # Exit with an error code for incorrect usage
 
     # Parse command-line arguments
     local_file_to_upload = sys.argv[1]
@@ -66,10 +51,11 @@ if __name__ == "__main__":
     # Verify that the local file exists before attempting to upload
     if not os.path.exists(local_file_to_upload):
         print(f"❌ Error: The output file '{local_file_to_upload}' was not found. Please ensure the preceding steps successfully generated this file.")
-        sys.exit(1) # Exit with an error code if the file is not found
+        sys.exit(1)  # Exit with an error code if the file is not found
 
     # Call the upload function
     if not upload_file_to_dropbox(local_file_to_upload, dropbox_file_path, refresh_token, client_id, client_secret):
-        sys.exit(1) # Exit with an error code if the upload itself fails
+        sys.exit(1)  # Exit with an error code if the upload itself fails
+
 
 
