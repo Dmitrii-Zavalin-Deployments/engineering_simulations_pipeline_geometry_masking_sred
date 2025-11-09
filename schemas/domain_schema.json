@@ -12,10 +12,10 @@
       "type": "array",
       "items": {
         "type": "integer",
-        "enum": [0, 1]
+        "enum": [0, 1, -1]
       },
       "minItems": 1,
-      "description": "Flattened voxel mask with binary encoding (0 = solid, 1 = fluid)"
+      "description": "Flattened voxel mask with encoding (0 = solid, 1 = fluid, -1 = boundary)"
     },
     "geometry_mask_shape": {
       "type": "array",
@@ -38,10 +38,14 @@
         "solid": {
           "type": "integer",
           "enum": [0]
+        },
+        "boundary": {
+          "type": "integer",
+          "enum": [-1]
         }
       },
       "additionalProperties": false,
-      "description": "Binary encoding map for fluid and solid regions"
+      "description": "Encoding map for fluid, solid, and optional boundary regions"
     },
     "flattening_order": {
       "type": "string",
