@@ -6,7 +6,8 @@
   ],
   "mask_encoding": {
     "fluid": 1,
-    "solid": 0
+    "solid": 0,
+    "boundary": -1
   },
   "flattening_order": "x-major",
   "geometry_mask_flat": [
