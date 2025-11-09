@@ -63,14 +63,6 @@ def main():
         boundary_count = result["geometry_mask_flat"].count(-1)
         print(f"[DEBUG] Found {boundary_count} boundary voxels (value = -1) before applying no_slip policy.")
 
-        if boundary_count > 0:
-            if args.no_slip:
-                result["geometry_mask_flat"] = [0 if v == -1 else v for v in result["geometry_mask_flat"]]
-                print("[INFO] Boundary voxels reclassified as solid (0) due to no_slip = True.")
-            else:
-                result["geometry_mask_flat"] = [1 if v == -1 else v for v in result["geometry_mask_flat"]]
-                print("[INFO] Boundary voxels reclassified as fluid (1) due to no_slip = False.")
-
         # Show updated flow region and comment if fallback occurred
         updated_region = model_data["model_properties"].get("flow_region")
         region_comment = model_data["model_properties"].get("flow_region_comment", "")
